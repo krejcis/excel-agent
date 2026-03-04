@@ -1,0 +1,119 @@
+/* ============================================
+   LogiCore AI – Core Type Definitions
+   ============================================ */
+
+// ── Agent Registry ──────────────────────────
+
+export type AgentId =
+    | 'invoice-auditor'
+    | 'data-prepper'
+    | 'rate-normalizer'
+    | 'ad-hoc-analyst';
+
+export type AgentStatus = 'available' | 'coming-soon' | 'beta';
+
+export interface AgentDefinition {
+    id: AgentId;
+    name: string;
+    subtitle: string;
+    description: string;
+    icon: string;
+    status: AgentStatus;
+    color: string;
+    accentColor: string;
+}
+
+// ── Invoice Auditor Types ───────────────────
+
+export interface QuoteLineItem {
+    position: number;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+    currency: string;
+    category?: string;
+    reference?: string;
+}
+
+export interface InvoiceLineItem {
+    position: number;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+    currency: string;
+    invoiceNumber?: string;
+    reference?: string;
+}
+
+export interface VarianceItem {
+    id: string;
+    quoteDescription: string;
+    invoiceDescription: string;
+    quoteAmount: number;
+    invoiceAmount: number;
+    variance: number;
+    variancePercent: number;
+    matchConfidence: number;
+    status: 'match' | 'overage' | 'underage' | 'unmatched-quote' | 'unmatched-invoice';
+    category?: string;
+    notes?: string;
+}
+
+export interface AuditReport {
+    id: string;
+    timestamp: string;
+    quoteFileName: string;
+    invoiceFileName: string;
+    totalQuoteAmount: number;
+    totalInvoiceAmount: number;
+    totalVariance: number;
+    lineItems: VarianceItem[];
+    summary: AuditSummary;
+}
+
+export interface AuditSummary {
+    totalItems: number;
+    matchedItems: number;
+    overageItems: number;
+    underageItems: number;
+    unmatchedQuoteItems: number;
+    unmatchedInvoiceItems: number;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+}
+
+// ── Excel Parsing ───────────────────────────
+
+export interface ParsedSheet {
+    name: string;
+    headers: string[];
+    rows: Record<string, unknown>[];
+    rawData: unknown[][];
+}
+
+export interface ParsedWorkbook {
+    fileName: string;
+    sheets: ParsedSheet[];
+    totalRows: number;
+}
+
+// ── Application State ───────────────────────
+
+export type AppView = 'dashboard' | AgentId;
+
+export interface FileUploadState {
+    file: File | null;
+    parsed: ParsedWorkbook | null;
+    status: 'idle' | 'uploading' | 'parsing' | 'ready' | 'error';
+    error?: string;
+}
+
+export interface ProcessingState {
+    status: 'idle' | 'processing' | 'complete' | 'error';
+    progress: number;
+    message?: string;
+    error?: string;
+}
