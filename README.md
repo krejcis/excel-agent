@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LogiCore AI – Logistics Excel Processor
+
+AI-powered dashboard for freight forwarding operations: invoice auditing, data preparation, rate normalization, and ad-hoc analytics.
+
+## Tech Stack
+
+- **Frontend:** Vite 5 + React 19 + TypeScript
+- **AI:** Google Gemini API (via Vercel serverless proxy)
+- **Deployment:** Vercel (static hosting + serverless functions)
+- **File processing:** SheetJS (client-side Excel parsing)
+- **State management:** Zustand
+- **Styling:** Tailwind CSS v4
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Create your local env file
+cp .env.example .env.local
+# Then fill in the values in .env.local
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Purpose | Required |
+| --- | --- | --- |
+| `VITE_ACCESS_CODE` | Access gate password (min 12 characters recommended) | Yes |
+| `VITE_GEMINI_API_KEY` | Google AI API key (**server-side only** via `/api/analyze`) | Yes |
 
-## Learn More
+> **Note:** `VITE_GEMINI_API_KEY` is read by the Vercel serverless function at `/api/analyze`. It is **never** bundled into the frontend or exposed in the browser.
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+├── api/
+│   └── analyze.ts          # Vercel serverless function (Gemini proxy)
+├── src/
+│   ├── agents/             # Agent modules (Invoice Auditor, etc.)
+│   ├── components/         # Shared UI components
+│   ├── config/             # Agent registry
+│   ├── services/           # API client (calls /api/analyze)
+│   ├── store/              # Zustand state management
+│   ├── types/              # TypeScript type definitions
+│   ├── utils/              # Excel parser and utilities
+│   ├── App.tsx             # Root component with access gate
+│   ├── main.tsx            # React entry point
+│   └── index.css           # Design system tokens
+├── index.html
+├── vite.config.ts
+└── package.json
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Security Notes
 
-## Deploy on Vercel
+- **Never** commit `.env` files — they are gitignored.
+- **Never** commit the `dist/` folder — it is gitignored.
+- The Gemini API key is handled **server-side only** via the `/api/analyze` proxy. It is invisible in browser DevTools.
+- The access gate provides basic UX protection with rate limiting (5 attempts → 5-min lockout). Real security relies on the server-side API proxy.
+- This tool is provided as-is. The user is responsible for data compliance in their jurisdiction.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is designed for [Vercel](https://vercel.com):
+
+1. Push to your GitHub repository
+2. Import the project in Vercel
+3. Set environment variables (`VITE_ACCESS_CODE`, `VITE_GEMINI_API_KEY`) in Vercel → Settings → Environment Variables
+4. Deploy — Vercel auto-detects Vite and the `/api` serverless functions
+
+## License
+
+Private — not for redistribution.

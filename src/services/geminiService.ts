@@ -1,52 +1,44 @@
 /* ============================================
    LogiCore AI – Gemini AI Service
-   Privacy-first: only anonymized text chunks
-   are sent to the API. No raw files transmitted.
+   All requests proxied via /api/analyze.
+   API key never leaves the server.
    ============================================ */
 
-import { GoogleGenAI } from '@google/genai';
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
-
-if (!API_KEY) {
-    console.warn(
-        '[LogiCore AI] VITE_GEMINI_API_KEY is not set. AI features will be unavailable.'
-    );
+interface AnalyzeResponse {
+    text: string;
+    error?: string;
+    details?: string;
 }
 
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-
-const MODEL = 'gemini-2.5-flash';
-
 /**
- * Sends a structured prompt to Gemini and returns the text response.
- * Only processed, anonymized data chunks are transmitted — never raw files.
+ * Sends a structured prompt to the Gemini API via the Vercel serverless proxy.
+ * No API key is ever referenced or transmitted from the client.
  */
-export async function queryGemini(prompt: string): Promise<string> {
-    if (!ai) {
+export async function queryGemini(prompt: string, fileData: string = ''): Promise<string> {
+    const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, fileData }),
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => ({}))) as { error?: string };
         throw new Error(
-            'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in your .env.local file.'
+            errorBody.error ?? `API proxy error: ${response.status} ${response.statusText}`
         );
     }
 
-    try {
-        const response = await ai.models.generateContent({
-            model: MODEL,
-            contents: prompt,
-        });
+    const data = (await response.json()) as AnalyzeResponse;
 
-        const text = response.text;
-        if (!text) {
-            throw new Error('Empty response from Gemini API.');
-        }
-
-        return text;
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            throw new Error(`Gemini API Error: ${error.message}`);
-        }
-        throw new Error('Unknown error communicating with Gemini API.');
+    if (data.error) {
+        throw new Error(`Gemini API Error: ${data.error}`);
     }
+
+    if (!data.text) {
+        throw new Error('Empty response from Gemini API.');
+    }
+
+    return data.text;
 }
 
 /**

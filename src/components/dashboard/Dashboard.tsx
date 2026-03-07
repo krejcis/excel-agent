@@ -10,9 +10,6 @@ import {
     Table,
     MessageSquareText,
     ArrowRight,
-    Lock,
-    Shield,
-    Zap,
 } from 'lucide-react';
 import { AGENTS } from '@/config/agents';
 import { useAppStore } from '@/store/appStore';
@@ -104,24 +101,8 @@ export const Dashboard: React.FC = () => {
                         </h2>
                         <p className="text-sm text-slate-500 mt-1 max-w-xl">
                             AI-powered agents for freight forwarding operations. Select an agent below to
-                            begin processing. All data remains on your local machine.
+                            begin processing.
                         </p>
-                    </div>
-                </div>
-
-                {/* Trust Bar */}
-                <div className="flex items-center gap-6 mt-6 text-xs text-slate-400 font-medium">
-                    <div className="flex items-center gap-1.5">
-                        <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>GDPR Compliant</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-blue-500" />
-                        <span>ISO 27001 Ready</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Client-Side Processing</span>
                     </div>
                 </div>
             </div>
@@ -140,8 +121,7 @@ export const Dashboard: React.FC = () => {
             {/* Footer Note */}
             <div className="mt-10 text-center">
                 <p className="text-xs text-slate-400">
-                    LogiCore AI v1.0 – Phase 1 MVP • Only anonymized data chunks are sent
-                    to AI endpoints
+                    LogiCore AI v0.2.0-beta • Data is sent to AI endpoints for processing
                 </p>
             </div>
         </div>

@@ -1,0 +1,91 @@
+# LogiCore AI v0.2.0-beta – Pre-Deployment Checklist
+
+> Post-security-audit cleanup. All tasks completed 2026-03-05.
+
+## ✅ Completed Tasks
+
+### Task 1: Vercel API Proxy
+- [x] Created [api/analyze.ts](file:///c:/kody-testing/excel-agent/api/analyze.ts) — Vercel serverless function
+- [x] Accepts `POST { prompt, fileData }`, validates inputs, rejects empty prompts
+- [x] Reads `VITE_GEMINI_API_KEY` from `process.env` (server-side only)
+- [x] Forwards to Gemini REST API, returns `{ text }` to frontend
+- [x] CORS headers set to Vercel domain only
+- [x] Max body size: 1 MB
+- [x] Updated [geminiService.ts](file:///c:/kody-testing/excel-agent/src/services/geminiService.ts) — calls `/api/analyze` instead of SDK
+- [x] Removed `@google/genai` from `dependencies`
+- [x] Added `@vercel/node` to `devDependencies`
+
+### Task 2: Access Code
+- [x] [App.tsx](file:///c:/kody-testing/excel-agent/src/App.tsx) reads `import.meta.env.VITE_ACCESS_CODE`
+- [x] Shows warning banner `⚠ Development mode – set VITE_ACCESS_CODE in env` if undefined
+- [x] Rate limiting: 5 failed attempts → 5-minute lockout with live countdown
+- [x] State-based tracking (not localStorage)
+- [x] Removed hardcoded `LogiCore2026`
+
+### Task 3: Badge Removal
+- [x] Removed "GDPR Compliant" from [Dashboard.tsx](file:///c:/kody-testing/excel-agent/src/components/dashboard/Dashboard.tsx)
+- [x] Removed "ISO 27001 Ready" from Dashboard
+- [x] Removed "Secure Mode: Local Processing Only" from [PrivacyShield.tsx](file:///c:/kody-testing/excel-agent/src/components/shared/PrivacyShield.tsx)
+- [x] Removed "Client-Side Processing" from Dashboard
+- [x] Removed "All data remains on your local machine" claim
+- [x] Removed "Local Processing Mode Active" from login screen
+- [x] Added "v0.2.0-beta" badge
+- [x] Added "HTTPS Encrypted" badge
+
+### Task 4: .gitignore
+- [x] Added `dist/`, `dist-ssr/`, `*.local`
+- [x] Added `.env` and `.env.*` with `!.env.example` exception
+- [x] Removed Next.js-specific entries
+- [x] Verified `dist/` and [.env.local](file:///c:/kody-testing/excel-agent/.env.local) are not in git index
+
+### Task 5: .env.example
+- [x] Created [.env.example](file:///c:/kody-testing/excel-agent/.env.example) with template values
+- [x] Documented that `VITE_GEMINI_API_KEY` is server-side only
+
+### Task 6: README.md
+- [x] [README.md](file:///c:/kody-testing/excel-agent/README.md) rewritten completely
+- [x] Correct tech stack (Vite 5, React 19, TypeScript, Gemini via proxy, SheetJS)
+- [x] Environment variables documented
+- [x] Security notes included
+- [x] Deployment instructions for Vercel
+
+### Additional
+- [x] Created [CHANGELOG.md](file:///c:/kody-testing/excel-agent/CHANGELOG.md)
+- [x] Updated [package.json](file:///c:/kody-testing/excel-agent/package.json) version to `0.2.0-beta`
+- [x] Build verification passed (`npm run build` → exit code 0)
+- [x] `dist/` folder cleaned after build verification
+
+---
+
+## 🚀 Before You Deploy to Vercel
+
+| # | Action | Status |
+|---|--------|--------|
+| 1 | Set `VITE_ACCESS_CODE` in Vercel → Settings → Environment Variables | ⬜ Pending |
+| 2 | Set `VITE_GEMINI_API_KEY` in Vercel → Settings → Environment Variables | ⬜ Pending |
+| 3 | Push changes to Git (confirm no `.env` files are committed) | ⬜ Pending |
+| 4 | Verify `dist/` is NOT committed (`git status` should not show it) | ⬜ Pending |
+| 5 | Deploy on Vercel and test `/api/analyze` endpoint | ⬜ Pending |
+| 6 | Open browser DevTools → Network tab → verify API key is invisible | ⬜ Pending |
+| 7 | Test access gate with wrong codes (should lock out after 5 attempts) | ⬜ Pending |
+| 8 | Verify no compliance badges appear in the UI | ⬜ Pending |
+
+---
+
+## 📁 Files Modified/Created
+
+| File | Action | Purpose |
+|------|--------|---------|
+| [api/analyze.ts](file:///c:/kody-testing/excel-agent/api/analyze.ts) | **Created** | Vercel serverless Gemini proxy |
+| [src/services/geminiService.ts](file:///c:/kody-testing/excel-agent/src/services/geminiService.ts) | **Rewritten** | Proxy-based API client |
+| [src/App.tsx](file:///c:/kody-testing/excel-agent/src/App.tsx) | **Rewritten** | Env-based auth + rate limiting |
+| [src/components/shared/PrivacyShield.tsx](file:///c:/kody-testing/excel-agent/src/components/shared/PrivacyShield.tsx) | **Rewritten** | Verified-only badges |
+| [src/components/dashboard/Dashboard.tsx](file:///c:/kody-testing/excel-agent/src/components/dashboard/Dashboard.tsx) | **Rewritten** | Removed false compliance claims |
+| [.gitignore](file:///c:/kody-testing/excel-agent/.gitignore) | **Rewritten** | Vite-appropriate ignore patterns |
+| [.env.example](file:///c:/kody-testing/excel-agent/.env.example) | **Created** | Env var template |
+| [README.md](file:///c:/kody-testing/excel-agent/README.md) | **Rewritten** | Accurate project documentation |
+| [CHANGELOG.md](file:///c:/kody-testing/excel-agent/CHANGELOG.md) | **Created** | Version history |
+| [package.json](file:///c:/kody-testing/excel-agent/package.json) | **Modified** | Version bump, removed `@google/genai`, added `@vercel/node` |
+
+> [!CAUTION]
+> **Do NOT add back any compliance badges** (GDPR, ISO, etc.) until the corresponding certifications are actually obtained and verified.

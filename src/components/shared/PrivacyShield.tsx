@@ -1,22 +1,30 @@
 /* ============================================
-   LogiCore AI – Privacy Shield Badge
-   Always-visible security status indicator
+   LogiCore AI – Status Badges (Header)
+   Replaced false compliance claims with
+   verified-only indicators.
    ============================================ */
 
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { Lock, Tag } from 'lucide-react';
 
 export const PrivacyShield: React.FC = () => {
     return (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-300/40 bg-emerald-500/8 select-none">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-semibold tracking-wide text-emerald-400 uppercase">
-                Secure Mode: Local Processing Only
-            </span>
-            <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
+        <div className="flex items-center gap-3">
+            {/* Version badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-500/30 bg-slate-500/8 select-none">
+                <Tag className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    v0.2.0-beta
+                </span>
+            </div>
+
+            {/* HTTPS badge — Vercel provides this automatically */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-400/30 bg-blue-500/8 select-none">
+                <Lock className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-semibold tracking-wide text-blue-400 uppercase">
+                    HTTPS Encrypted
+                </span>
+            </div>
         </div>
     );
 };
