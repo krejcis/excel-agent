@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AGENTS } from '@/config/agents';
 import { useAppStore } from '@/store/appStore';
+import { useLanguage } from '@/context/LanguageContext';
 import type { AgentDefinition, AppView } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -22,12 +23,22 @@ const iconMap: Record<string, React.ElementType> = {
     MessageSquareText,
 };
 
+// Map agent IDs to their translation key prefix
+const agentTranslationKeys: Record<string, string> = {
+    'invoice-auditor': 'agents.invoiceAuditor',
+    'data-prepper': 'agents.dataPrepper',
+    'rate-normalizer': 'agents.rateNormalizer',
+    'ad-hoc-analyst': 'agents.adHocAnalyst',
+};
+
 const AgentCard: React.FC<{
     agent: AgentDefinition;
     onSelect: (id: AppView) => void;
-}> = ({ agent, onSelect }) => {
+    t: (key: string) => string;
+}> = ({ agent, onSelect, t }) => {
     const Icon = iconMap[agent.icon] ?? FileSearch;
     const isAvailable = agent.status === 'available';
+    const tKey = agentTranslationKeys[agent.id] ?? '';
 
     return (
         <button
@@ -46,14 +57,14 @@ const AgentCard: React.FC<{
             {agent.status === 'coming-soon' && (
                 <div className="absolute top-4 right-4">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                        Coming Soon
+                        {t('agents.comingSoon')}
                     </span>
                 </div>
             )}
             {agent.status === 'available' && (
                 <div className="absolute top-4 right-4">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        Available
+                        {t('agents.available')}
                     </span>
                 </div>
             )}
@@ -70,16 +81,16 @@ const AgentCard: React.FC<{
             </div>
 
             {/* Content */}
-            <h3 className="text-base font-bold text-slate-800 mb-0.5">{agent.name}</h3>
-            <p className="text-xs font-medium text-slate-400 mb-2">{agent.subtitle}</p>
+            <h3 className="text-base font-bold text-slate-800 mb-0.5">{t(`${tKey}.name`)}</h3>
+            <p className="text-xs font-medium text-slate-400 mb-2">{t(`${tKey}.subtitle`)}</p>
             <p className="text-sm text-slate-500 leading-relaxed mb-4 line-clamp-3">
-                {agent.description}
+                {t(`${tKey}.description`)}
             </p>
 
             {/* CTA */}
             {isAvailable && (
                 <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 group-hover:gap-2.5 transition-all">
-                    <span>Open Agent</span>
+                    <span>{t('agents.openAgent')}</span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
             )}
@@ -89,6 +100,7 @@ const AgentCard: React.FC<{
 
 export const Dashboard: React.FC = () => {
     const setView = useAppStore((s) => s.setView);
+    const { t } = useLanguage();
 
     return (
         <div className="max-w-screen-xl mx-auto px-6 py-8 animate-[fade-in_0.5s_ease-out]">
@@ -97,11 +109,10 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-start justify-between flex-wrap gap-4 mb-2">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                            Operations Dashboard
+                            {t('dashboard.title')}
                         </h2>
                         <p className="text-sm text-slate-500 mt-1 max-w-xl">
-                            AI-powered agents for freight forwarding operations. Select an agent below to
-                            begin processing.
+                            {t('dashboard.subtitle')}
                         </p>
                     </div>
                 </div>
@@ -114,6 +125,7 @@ export const Dashboard: React.FC = () => {
                         key={agent.id}
                         agent={agent}
                         onSelect={setView}
+                        t={t}
                     />
                 ))}
             </div>
@@ -121,7 +133,7 @@ export const Dashboard: React.FC = () => {
             {/* Footer Note */}
             <div className="mt-10 text-center">
                 <p className="text-xs text-slate-400">
-                    LogiCore AI v0.2.0-beta • Data is sent to AI endpoints for processing
+                    {t('dashboard.footerNote')}
                 </p>
             </div>
         </div>

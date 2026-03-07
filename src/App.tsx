@@ -7,12 +7,15 @@ import { Header } from '@/components/shared/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { InvoiceAuditor } from '@/agents/invoice-auditor/InvoiceAuditor';
 import { useAppStore } from '@/store/appStore';
+import { useLanguage } from '@/context/LanguageContext';
 
 const ACCESS_CODE = import.meta.env.VITE_ACCESS_CODE as string | undefined;
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 const App: React.FC = () => {
+    const { t } = useLanguage();
+
     // --- SECURITY GATE LOGIC START ---
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [passwordInput, setPasswordInput] = useState('');
@@ -88,17 +91,15 @@ const App: React.FC = () => {
 
                 if (newAttempts >= MAX_ATTEMPTS) {
                     setLockoutEnd(Date.now() + LOCKOUT_DURATION_MS);
-                    setError(
-                        `Too many failed attempts. Input disabled for 5 minutes.`
-                    );
+                    setError(t('login.errorTooMany'));
                 } else {
                     setError(
-                        `Invalid Access Code (${newAttempts}/${MAX_ATTEMPTS} attempts)`
+                        `${t('login.errorInvalid')} (${newAttempts}/${MAX_ATTEMPTS} ${t('login.errorAttempts')})`
                     );
                 }
             }
         },
-        [passwordInput, failedAttempts, lockoutEnd]
+        [passwordInput, failedAttempts, lockoutEnd, t]
     );
     // --- SECURITY GATE LOGIC END ---
 
@@ -114,9 +115,9 @@ const App: React.FC = () => {
                 return (
                     <div className="max-w-screen-xl mx-auto px-6 py-20 text-center">
                         <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 inline-block">
-                            <h3 className="text-lg font-semibold text-slate-800 mb-2">Agent Under Construction</h3>
+                            <h3 className="text-lg font-semibold text-slate-800 mb-2">{t('agents.underConstruction')}</h3>
                             <p className="text-slate-500 text-sm">
-                                This module is currently in development phase.
+                                {t('agents.underConstructionDesc')}
                             </p>
                         </div>
                     </div>
@@ -142,14 +143,14 @@ const App: React.FC = () => {
                 {/* Dev mode warning banner */}
                 {!ACCESS_CODE && (
                     <div className="fixed top-0 left-0 right-0 bg-amber-500 text-amber-950 text-center py-2 px-4 text-sm font-semibold z-50">
-                        ⚠ Development mode – set VITE_ACCESS_CODE in env
+                        {t('login.devWarning')}
                     </div>
                 )}
 
                 <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
                     <div className="bg-blue-600 p-6 text-center">
-                        <h1 className="text-2xl font-bold text-white tracking-wide">LogiCore AI</h1>
-                        <p className="text-blue-100 text-sm mt-1">Enterprise Logistics Operations</p>
+                        <h1 className="text-2xl font-bold text-white tracking-wide">{t('login.title')}</h1>
+                        <p className="text-blue-100 text-sm mt-1">{t('login.subtitle')}</p>
                     </div>
 
                     <div className="p-8">
@@ -159,7 +160,7 @@ const App: React.FC = () => {
                                     htmlFor="access-code-input"
                                     className="block text-sm font-medium text-slate-700 mb-2"
                                 >
-                                    Secure Access Code
+                                    {t('login.label')}
                                 </label>
                                 <input
                                     id="access-code-input"
@@ -167,7 +168,7 @@ const App: React.FC = () => {
                                     value={passwordInput}
                                     onChange={(e) => setPasswordInput(e.target.value)}
                                     className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    placeholder="Enter access code..."
+                                    placeholder={t('login.placeholder')}
                                     autoFocus
                                     disabled={isLockedOut}
                                 />
@@ -178,7 +179,7 @@ const App: React.FC = () => {
                                     <p>{error}</p>
                                     {isLockedOut && lockoutRemaining > 0 && (
                                         <p className="text-xs mt-1 font-mono">
-                                            Retry in {formatCountdown(lockoutRemaining)}
+                                            {t('login.retryIn')} {formatCountdown(lockoutRemaining)}
                                         </p>
                                     )}
                                 </div>
@@ -189,13 +190,13 @@ const App: React.FC = () => {
                                 disabled={isLockedOut}
                                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Verify Identity
+                                {t('login.button')}
                             </button>
                         </form>
 
                         <div className="mt-6 pt-6 border-t border-slate-100 text-center">
                             <p className="text-xs text-slate-400">
-                                Protected System. Authorized Personnel Only.
+                                {t('login.footer')}
                             </p>
                         </div>
                     </div>

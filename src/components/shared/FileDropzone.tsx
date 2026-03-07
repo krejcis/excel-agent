@@ -5,6 +5,7 @@
 
 import React, { useCallback, useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface FileDropzoneProps {
     label: string;
@@ -25,6 +26,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
     error,
     disabled = false,
 }) => {
+    const { t } = useLanguage();
     const [isDragActive, setIsDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,7 +140,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
 
                 {/* Status */}
                 {isProcessing && (
-                    <p className="text-xs text-blue-600 font-medium">Processing…</p>
+                    <p className="text-xs text-blue-600 font-medium">{t('invoiceAuditor.processing')}</p>
                 )}
                 {isReady && fileName && (
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
@@ -151,7 +153,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
                 )}
                 {!isProcessing && !isReady && !isError && (
                     <p className="text-xs text-slate-400">
-                        Drag & drop or click • .xlsx only
+                        {t('invoiceAuditor.dragAndDrop')}
                     </p>
                 )}
             </div>

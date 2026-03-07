@@ -23,11 +23,12 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { parseExcelFile } from '@/utils/excelParser';
 import { runInvoiceAudit } from '@/agents/invoice-auditor/invoiceAuditService';
 import { useAppStore } from '@/store/appStore';
+import { useLanguage } from '@/context/LanguageContext';
 import type { AuditReport, VarianceItem } from '@/types';
 
 // ── Variance Table ────────────────────────────
 
-const VarianceRow: React.FC<{ item: VarianceItem; index: number }> = ({ item, index }) => {
+const VarianceRow: React.FC<{ item: VarianceItem; index: number; t: (key: string) => string }> = ({ item, index, t }) => {
     const [expanded, setExpanded] = useState(false);
 
     const getStatusIcon = () => {
@@ -48,15 +49,15 @@ const VarianceRow: React.FC<{ item: VarianceItem; index: number }> = ({ item, in
     const getStatusBadge = () => {
         switch (item.status) {
             case 'match':
-                return <StatusBadge variant="success" dot>Match</StatusBadge>;
+                return <StatusBadge variant="success" dot>{t('invoiceAuditor.statusMatch')}</StatusBadge>;
             case 'overage':
-                return <StatusBadge variant="danger" dot>Overage</StatusBadge>;
+                return <StatusBadge variant="danger" dot>{t('invoiceAuditor.statusOverage')}</StatusBadge>;
             case 'underage':
-                return <StatusBadge variant="info" dot>Underage</StatusBadge>;
+                return <StatusBadge variant="info" dot>{t('invoiceAuditor.statusUnderage')}</StatusBadge>;
             case 'unmatched-quote':
-                return <StatusBadge variant="warning" dot>Quote Only</StatusBadge>;
+                return <StatusBadge variant="warning" dot>{t('invoiceAuditor.statusQuoteOnly')}</StatusBadge>;
             case 'unmatched-invoice':
-                return <StatusBadge variant="danger" dot>Invoice Only</StatusBadge>;
+                return <StatusBadge variant="danger" dot>{t('invoiceAuditor.statusInvoiceOnly')}</StatusBadge>;
         }
     };
 
@@ -135,7 +136,7 @@ const VarianceRow: React.FC<{ item: VarianceItem; index: number }> = ({ item, in
                         <div className="flex items-start gap-6 text-xs text-slate-500">
                             {item.category && (
                                 <div>
-                                    <span className="font-semibold text-slate-600">Category:</span> {item.category}
+                                    <span className="font-semibold text-slate-600">{t('invoiceAuditor.thCategory')}:</span> {item.category}
                                 </div>
                             )}
                             {item.notes && (
@@ -194,22 +195,23 @@ const SummaryCard: React.FC<{
 
 // ── Risk Level Badge ──────────────────────────
 
-const RiskBadge: React.FC<{ level: string }> = ({ level }) => {
-    const config: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info'; label: string }> = {
-        low: { variant: 'success', label: 'Low Risk' },
-        medium: { variant: 'warning', label: 'Medium Risk' },
-        high: { variant: 'danger', label: 'High Risk' },
-        critical: { variant: 'danger', label: 'Critical Risk' },
+const RiskBadge: React.FC<{ level: string; t: (key: string) => string }> = ({ level, t }) => {
+    const config: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info'; labelKey: string }> = {
+        low: { variant: 'success', labelKey: 'invoiceAuditor.riskLow' },
+        medium: { variant: 'warning', labelKey: 'invoiceAuditor.riskMedium' },
+        high: { variant: 'danger', labelKey: 'invoiceAuditor.riskHigh' },
+        critical: { variant: 'danger', labelKey: 'invoiceAuditor.riskCritical' },
     };
     const c = config[level] ?? config.low;
-    return <StatusBadge variant={c.variant} dot>{c.label}</StatusBadge>;
+    return <StatusBadge variant={c.variant} dot>{t(c.labelKey)}</StatusBadge>;
 };
 
 // ── Progress Bar ──────────────────────────────
 
-const ProgressBar: React.FC<{ progress: number; message?: string }> = ({
+const ProgressBar: React.FC<{ progress: number; message?: string; t: (key: string) => string }> = ({
     progress,
     message,
+    t,
 }) => (
     <div className="bg-white rounded-xl p-6 enterprise-shadow animate-[slide-up_0.3s_ease-out]">
         <div className="flex items-center gap-3 mb-3">
@@ -218,7 +220,7 @@ const ProgressBar: React.FC<{ progress: number; message?: string }> = ({
             </div>
             <div>
                 <p className="text-sm font-semibold text-slate-700">
-                    AI Analysis in Progress
+                    {t('invoiceAuditor.aiAnalysis')}
                 </p>
                 {message && (
                     <p className="text-xs text-slate-400 mt-0.5">{message}</p>
@@ -238,6 +240,7 @@ const ProgressBar: React.FC<{ progress: number; message?: string }> = ({
 // ── Main Component ────────────────────────────
 
 export const InvoiceAuditor: React.FC = () => {
+    const { t } = useLanguage();
     const {
         quoteFile,
         invoiceFile,
@@ -260,11 +263,11 @@ export const InvoiceAuditor: React.FC = () => {
                 const parsed = await parseExcelFile(file);
                 setQuoteFile({ parsed, status: 'ready' });
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Failed to parse file';
+                const msg = err instanceof Error ? err.message : t('invoiceAuditor.parseFailed');
                 setQuoteFile({ status: 'error', error: msg });
             }
         },
-        [setQuoteFile]
+        [setQuoteFile, t]
     );
 
     const handleInvoiceFile = useCallback(
@@ -274,11 +277,11 @@ export const InvoiceAuditor: React.FC = () => {
                 const parsed = await parseExcelFile(file);
                 setInvoiceFile({ parsed, status: 'ready' });
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Failed to parse file';
+                const msg = err instanceof Error ? err.message : t('invoiceAuditor.parseFailed');
                 setInvoiceFile({ status: 'error', error: msg });
             }
         },
-        [setInvoiceFile]
+        [setInvoiceFile, t]
     );
 
     // Run audit
@@ -301,10 +304,10 @@ export const InvoiceAuditor: React.FC = () => {
             setAuditReport(report);
             setProcessing({ status: 'complete', progress: 100 });
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Audit failed';
+            const msg = err instanceof Error ? err.message : t('invoiceAuditor.analysisFailed');
             setProcessing({ status: 'error', error: msg });
         }
-    }, [quoteFile, invoiceFile, setProcessing, setAuditReport]);
+    }, [quoteFile, invoiceFile, setProcessing, setAuditReport, t]);
 
     // Export report
     const handleExport = useCallback(() => {
@@ -341,10 +344,9 @@ export const InvoiceAuditor: React.FC = () => {
                     <FileSearch className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-slate-900">Invoice Auditor</h2>
+                    <h2 className="text-xl font-bold text-slate-900">{t('invoiceAuditor.title')}</h2>
                     <p className="text-sm text-slate-500">
-                        Upload a carrier invoice and the original cost estimate for automated
-                        line-item variance analysis.
+                        {t('invoiceAuditor.description')}
                     </p>
                 </div>
             </div>
@@ -354,8 +356,8 @@ export const InvoiceAuditor: React.FC = () => {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <FileDropzone
-                            label="Cost Estimate (Quote)"
-                            sublabel="Upload the original quotation / cost estimate"
+                            label={t('invoiceAuditor.quoteLabel')}
+                            sublabel={t('invoiceAuditor.quoteSublabel')}
                             onFileAccepted={handleQuoteFile}
                             status={quoteFile.status}
                             fileName={quoteFile.parsed?.fileName}
@@ -363,8 +365,8 @@ export const InvoiceAuditor: React.FC = () => {
                             disabled={processing.status === 'processing'}
                         />
                         <FileDropzone
-                            label="Carrier Invoice"
-                            sublabel="Upload the invoice received from the carrier"
+                            label={t('invoiceAuditor.invoiceLabel')}
+                            sublabel={t('invoiceAuditor.invoiceSublabel')}
                             onFileAccepted={handleInvoiceFile}
                             status={invoiceFile.status}
                             fileName={invoiceFile.parsed?.fileName}
@@ -378,14 +380,14 @@ export const InvoiceAuditor: React.FC = () => {
                         <div className="flex items-center gap-4 text-xs text-slate-400">
                             {quoteFile.parsed && (
                                 <span>
-                                    Quote: {quoteFile.parsed.sheets[0]?.rows.length ?? 0} rows •{' '}
-                                    {quoteFile.parsed.sheets[0]?.headers.length ?? 0} columns
+                                    {t('invoiceAuditor.quotePrefix')}: {quoteFile.parsed.sheets[0]?.rows.length ?? 0} {t('invoiceAuditor.rows')} •{' '}
+                                    {quoteFile.parsed.sheets[0]?.headers.length ?? 0} {t('invoiceAuditor.columns')}
                                 </span>
                             )}
                             {invoiceFile.parsed && (
                                 <span>
-                                    Invoice: {invoiceFile.parsed.sheets[0]?.rows.length ?? 0} rows •{' '}
-                                    {invoiceFile.parsed.sheets[0]?.headers.length ?? 0} columns
+                                    {t('invoiceAuditor.invoicePrefix')}: {invoiceFile.parsed.sheets[0]?.rows.length ?? 0} {t('invoiceAuditor.rows')} •{' '}
+                                    {invoiceFile.parsed.sheets[0]?.headers.length ?? 0} {t('invoiceAuditor.columns')}
                                 </span>
                             )}
                         </div>
@@ -396,6 +398,7 @@ export const InvoiceAuditor: React.FC = () => {
                         <ProgressBar
                             progress={processing.progress}
                             message={processing.message}
+                            t={t}
                         />
                     )}
 
@@ -404,7 +407,7 @@ export const InvoiceAuditor: React.FC = () => {
                         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
                             <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
                             <div>
-                                <p className="text-sm font-semibold text-red-700">Analysis Failed</p>
+                                <p className="text-sm font-semibold text-red-700">{t('invoiceAuditor.analysisFailed')}</p>
                                 <p className="text-xs text-red-600 mt-0.5">{processing.error}</p>
                             </div>
                         </div>
@@ -424,7 +427,7 @@ export const InvoiceAuditor: React.FC = () => {
               `}
                         >
                             <Play className="w-4 h-4" />
-                            Run Variance Analysis
+                            {t('invoiceAuditor.runAnalysis')}
                         </button>
 
                         {(quoteFile.status !== 'idle' || invoiceFile.status !== 'idle') && (
@@ -433,7 +436,7 @@ export const InvoiceAuditor: React.FC = () => {
                                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-colors"
                             >
                                 <RotateCcw className="w-3.5 h-3.5" />
-                                Reset
+                                {t('invoiceAuditor.reset')}
                             </button>
                         )}
                     </div>
@@ -450,6 +453,7 @@ export const InvoiceAuditor: React.FC = () => {
                     onExport={handleExport}
                     onReset={resetAuditor}
                     fmt={fmt}
+                    t={t}
                 />
             )}
         </div>
@@ -466,29 +470,30 @@ const ReportView: React.FC<{
     onExport: () => void;
     onReset: () => void;
     fmt: (n: number) => string;
-}> = ({ report, filteredItems, filterStatus, setFilterStatus, onExport, onReset, fmt }) => {
+    t: (key: string) => string;
+}> = ({ report, filteredItems, filterStatus, setFilterStatus, onExport, onReset, fmt, t }) => {
     return (
         <div className="space-y-6 animate-[slide-up_0.4s_ease-out]">
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <SummaryCard
-                    label="Total Quote"
+                    label={t('invoiceAuditor.totalQuote')}
                     value={fmt(report.totalQuoteAmount)}
-                    sublabel={`${report.summary.totalItems} line items`}
+                    sublabel={`${report.summary.totalItems} ${t('invoiceAuditor.lineItems')}`}
                     icon={<FileSearch className="w-5 h-5" />}
                 />
                 <SummaryCard
-                    label="Total Invoice"
+                    label={t('invoiceAuditor.totalInvoice')}
                     value={fmt(report.totalInvoiceAmount)}
-                    sublabel={`${report.summary.matchedItems} matched`}
+                    sublabel={`${report.summary.matchedItems} ${t('invoiceAuditor.matched')}`}
                     icon={<FileSearch className="w-5 h-5" />}
                 />
                 <SummaryCard
-                    label="Net Variance"
+                    label={t('invoiceAuditor.netVariance')}
                     value={fmt(report.totalVariance)}
                     sublabel={
                         report.totalQuoteAmount > 0
-                            ? `${((report.totalVariance / report.totalQuoteAmount) * 100).toFixed(1)}% deviation`
+                            ? `${((report.totalVariance / report.totalQuoteAmount) * 100).toFixed(1)}% ${t('invoiceAuditor.deviation')}`
                             : undefined
                     }
                     variant={report.totalVariance > 0 ? 'danger' : report.totalVariance < 0 ? 'success' : 'default'}
@@ -501,9 +506,9 @@ const ReportView: React.FC<{
                     }
                 />
                 <SummaryCard
-                    label="Risk Assessment"
+                    label={t('invoiceAuditor.riskAssessment')}
                     value={report.summary.riskLevel.toUpperCase()}
-                    sublabel={`${report.summary.unmatchedInvoiceItems} unmatched invoice items`}
+                    sublabel={`${report.summary.unmatchedInvoiceItems} ${t('invoiceAuditor.unmatchedInvoiceItems')}`}
                     variant={
                         report.summary.riskLevel === 'critical' || report.summary.riskLevel === 'high'
                             ? 'danger'
@@ -517,7 +522,7 @@ const ReportView: React.FC<{
             {/* Toolbar */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
-                    <RiskBadge level={report.summary.riskLevel} />
+                    <RiskBadge level={report.summary.riskLevel} t={t} />
                     <span className="text-xs text-slate-400">
                         {report.quoteFileName} vs {report.invoiceFileName}
                     </span>
@@ -526,10 +531,10 @@ const ReportView: React.FC<{
                     {/* Filter Tabs */}
                     <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
                         {[
-                            { key: 'all', label: 'All' },
-                            { key: 'overage', label: 'Overages' },
-                            { key: 'underage', label: 'Underages' },
-                            { key: 'unmatched-invoice', label: 'Unmatched' },
+                            { key: 'all', labelKey: 'invoiceAuditor.filterAll' },
+                            { key: 'overage', labelKey: 'invoiceAuditor.filterOverages' },
+                            { key: 'underage', labelKey: 'invoiceAuditor.filterUnderages' },
+                            { key: 'unmatched-invoice', labelKey: 'invoiceAuditor.filterUnmatched' },
                         ].map((tab) => (
                             <button
                                 key={tab.key}
@@ -539,7 +544,7 @@ const ReportView: React.FC<{
                                         : 'text-slate-400 hover:text-slate-600'
                                     }`}
                             >
-                                {tab.label}
+                                {t(tab.labelKey)}
                             </button>
                         ))}
                     </div>
@@ -549,7 +554,7 @@ const ReportView: React.FC<{
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors enterprise-shadow"
                     >
                         <Download className="w-3.5 h-3.5" />
-                        Export JSON
+                        {t('invoiceAuditor.exportJson')}
                     </button>
 
                     <button
@@ -557,7 +562,7 @@ const ReportView: React.FC<{
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 transition-colors"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        New Audit
+                        {t('invoiceAuditor.newAudit')}
                     </button>
                 </div>
             </div>
@@ -572,50 +577,50 @@ const ReportView: React.FC<{
                                     #
                                 </th>
                                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32">
-                                    Status
+                                    {t('invoiceAuditor.thStatus')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Quote Item
+                                    {t('invoiceAuditor.thQuoteItem')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Invoice Item
+                                    {t('invoiceAuditor.thInvoiceItem')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Quote €
+                                    {t('invoiceAuditor.thQuoteAmount')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Invoice €
+                                    {t('invoiceAuditor.thInvoiceAmount')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Variance
+                                    {t('invoiceAuditor.thVariance')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16">
-                                    Var %
+                                    {t('invoiceAuditor.thVariancePercent')}
                                 </th>
                                 <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28">
-                                    Confidence
+                                    {t('invoiceAuditor.thConfidence')}
                                 </th>
                                 <th className="w-8" />
                             </tr>
                         </thead>
                         <tbody>
                             {filteredItems.map((item, idx) => (
-                                <VarianceRow key={item.id} item={item} index={idx} />
+                                <VarianceRow key={item.id} item={item} index={idx} t={t} />
                             ))}
                         </tbody>
                     </table>
                 </div>
                 {filteredItems.length === 0 && (
                     <div className="text-center py-12 text-sm text-slate-400">
-                        No items match the current filter.
+                        {t('invoiceAuditor.noItemsMatch')}
                     </div>
                 )}
             </div>
 
             {/* Timestamp */}
             <p className="text-center text-[10px] text-slate-300 mt-4">
-                Analysis performed at {new Date(report.timestamp).toLocaleString('de-AT')} •
-                Report ID: {report.id}
+                {t('invoiceAuditor.analysisPerformed')} {new Date(report.timestamp).toLocaleString('de-AT')} •
+                {t('invoiceAuditor.reportId')}: {report.id}
             </p>
         </div>
     );
