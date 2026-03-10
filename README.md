@@ -1,4 +1,4 @@
-# LogiCore AI v0.3.1 – Logistics Excel Processor
+# LogiCore AI v0.3.0 – Logistics Excel Processor
 
 AI-powered dashboard for freight forwarding operations: invoice auditing, courier reward calculation, data preparation, and ad-hoc analytics.
 
