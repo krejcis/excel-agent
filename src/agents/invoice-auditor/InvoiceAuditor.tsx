@@ -115,10 +115,10 @@ const VarianceRow: React.FC<{ item: VarianceItem; index: number; t: (key: string
                         <div className="w-12 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                             <div
                                 className={`h-full rounded-full transition-all ${item.matchConfidence >= 80
-                                        ? 'bg-emerald-500'
-                                        : item.matchConfidence >= 50
-                                            ? 'bg-amber-500'
-                                            : 'bg-red-500'
+                                    ? 'bg-emerald-500'
+                                    : item.matchConfidence >= 50
+                                        ? 'bg-amber-500'
+                                        : 'bg-red-500'
                                     }`}
                                 style={{ width: `${item.matchConfidence}%` }}
                             />
@@ -355,24 +355,42 @@ export const InvoiceAuditor: React.FC = () => {
             {!auditReport && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <FileDropzone
-                            label={t('invoiceAuditor.quoteLabel')}
-                            sublabel={t('invoiceAuditor.quoteSublabel')}
-                            onFileAccepted={handleQuoteFile}
-                            status={quoteFile.status}
-                            fileName={quoteFile.parsed?.fileName}
-                            error={quoteFile.error}
-                            disabled={processing.status === 'processing'}
-                        />
-                        <FileDropzone
-                            label={t('invoiceAuditor.invoiceLabel')}
-                            sublabel={t('invoiceAuditor.invoiceSublabel')}
-                            onFileAccepted={handleInvoiceFile}
-                            status={invoiceFile.status}
-                            fileName={invoiceFile.parsed?.fileName}
-                            error={invoiceFile.error}
-                            disabled={processing.status === 'processing'}
-                        />
+                        <div>
+                            <FileDropzone
+                                label={t('invoiceAuditor.quoteLabel')}
+                                sublabel={t('invoiceAuditor.quoteSublabel')}
+                                onFileAccepted={handleQuoteFile}
+                                status={quoteFile.status}
+                                fileName={quoteFile.parsed?.fileName}
+                                error={quoteFile.error}
+                                disabled={processing.status === 'processing'}
+                            />
+                            <a
+                                href="/samples/sample_invoice_auditor_quote.xlsx"
+                                download
+                                className="text-sm text-blue-500 hover:underline"
+                            >
+                                Stáhnout vzorový soubor
+                            </a>
+                        </div>
+                        <div>
+                            <FileDropzone
+                                label={t('invoiceAuditor.invoiceLabel')}
+                                sublabel={t('invoiceAuditor.invoiceSublabel')}
+                                onFileAccepted={handleInvoiceFile}
+                                status={invoiceFile.status}
+                                fileName={invoiceFile.parsed?.fileName}
+                                error={invoiceFile.error}
+                                disabled={processing.status === 'processing'}
+                            />
+                            <a
+                                href="/samples/sample_invoice_auditor_invoice.xlsx"
+                                download
+                                className="text-sm text-blue-500 hover:underline"
+                            >
+                                Stáhnout vzorový soubor
+                            </a>
+                        </div>
                     </div>
 
                     {/* File Preview Stats */}
@@ -540,8 +558,8 @@ const ReportView: React.FC<{
                                 key={tab.key}
                                 onClick={() => setFilterStatus(tab.key)}
                                 className={`px-3 py-1.5 rounded-md transition-colors ${filterStatus === tab.key
-                                        ? 'bg-white text-slate-700 shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-600'
+                                    ? 'bg-white text-slate-700 shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-600'
                                     }`}
                             >
                                 {t(tab.labelKey)}

@@ -283,13 +283,12 @@ export const RewardCalculator: React.FC = () => {
 
                         <div className="flex flex-col items-center gap-4">
                             <div
-                                className={`p-4 rounded-2xl transition-colors ${
-                                    phase === 'detecting'
+                                className={`p-4 rounded-2xl transition-colors ${phase === 'detecting'
                                         ? 'bg-blue-100 text-blue-600'
                                         : isDragActive
                                             ? 'bg-emerald-100 text-emerald-600'
                                             : 'bg-slate-100 text-slate-400'
-                                }`}
+                                    }`}
                             >
                                 {phase === 'detecting' ? (
                                     <Loader2 className="w-10 h-10 animate-spin" />
@@ -305,6 +304,14 @@ export const RewardCalculator: React.FC = () => {
                                 <p className="text-sm text-slate-400 mt-1">
                                     {t('rewardCalculator.dropzoneSublabel')}
                                 </p>
+                                <a
+                                    href="/samples/sample_reward_calculator.xlsx"
+                                    download
+                                    className="text-sm text-blue-500 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    Stáhnout vzorový soubor
+                                </a>
                             </div>
 
                             {phase === 'detecting' ? (
