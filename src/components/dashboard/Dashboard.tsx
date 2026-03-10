@@ -5,6 +5,7 @@
 
 import React from 'react';
 import {
+    Calculator,
     FileSearch,
     Database,
     Table,
@@ -17,6 +18,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import type { AgentDefinition, AppView } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
+    Calculator,
     FileSearch,
     Database,
     Table,
@@ -25,6 +27,7 @@ const iconMap: Record<string, React.ElementType> = {
 
 // Map agent IDs to their translation key prefix
 const agentTranslationKeys: Record<string, string> = {
+    'reward-calculator': 'agents.rewardCalculator',
     'invoice-auditor': 'agents.invoiceAuditor',
     'data-prepper': 'agents.dataPrepper',
     'rate-normalizer': 'agents.rateNormalizer',

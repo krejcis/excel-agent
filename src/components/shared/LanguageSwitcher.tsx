@@ -1,7 +1,7 @@
 /* ============================================
    LogiCore AI – Language Switcher
-   Toggle between CS and DE languages.
-   Designed to sit in the header alongside badges.
+   Toggle between CS, EN, and DE languages.
+   Active language is displayed bold.
    ============================================ */
 
 import React from 'react';
@@ -10,6 +10,7 @@ import type { Language } from '@/translations';
 
 const LANGUAGES: { code: Language; label: string }[] = [
     { code: 'cs', label: 'CS' },
+    { code: 'en', label: 'EN' },
     { code: 'de', label: 'DE' },
 ];
 

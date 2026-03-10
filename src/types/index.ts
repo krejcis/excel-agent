@@ -5,6 +5,7 @@
 // ── Agent Registry ──────────────────────────
 
 export type AgentId =
+    | 'reward-calculator'
     | 'invoice-auditor'
     | 'data-prepper'
     | 'rate-normalizer'
@@ -21,6 +22,38 @@ export interface AgentDefinition {
     status: AgentStatus;
     color: string;
     accentColor: string;
+}
+
+// ── Reward Calculator Types ─────────────────
+
+/** A single tier in the progressive rate table */
+export interface RewardTier {
+    from: number;
+    to: number | null; // null = infinity (last tier)
+    rate: number;
+}
+
+/** A driver's shipment data with calculated reward */
+export interface DriverReward {
+    name: string;
+    shipments: number;
+    reward: number;
+}
+
+/** Full result from the reward calculation engine */
+export interface RewardResult {
+    tiers: RewardTier[];
+    drivers: DriverReward[];
+    totalReward: number;
+    tiersSheetName: string;
+    dataSheetName: string;
+}
+
+/** Sheet detection result – which sheet is which */
+export interface SheetDetection {
+    tiersSheetIndex: number | null;
+    dataSheetIndex: number | null;
+    autoDetected: boolean;
 }
 
 // ── Invoice Auditor Types ───────────────────

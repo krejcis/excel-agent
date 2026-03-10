@@ -1,0 +1,650 @@
+/* ============================================
+   LogiCore AI – Reward Calculator Agent
+   Full UI: Upload → Detect → Calculate → Export
+   Single file drag & drop workflow.
+   ============================================ */
+
+import React, { useCallback, useState, useRef } from 'react';
+import {
+    Calculator,
+    Upload,
+    FileSpreadsheet,
+    CheckCircle2,
+    AlertCircle,
+    Loader2,
+    Download,
+    RotateCcw,
+    Users,
+    Coins,
+    ChevronDown,
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { parseExcelFile } from '@/utils/excelParser';
+import {
+    detectSheets,
+    calculateRewards,
+    RewardEngineError,
+} from '@/agents/reward-calculator/rewardEngine';
+import { useLanguage } from '@/context/LanguageContext';
+import type { ParsedWorkbook, RewardResult } from '@/types';
+
+// ── Types ─────────────────────────────────────
+
+type Phase = 'upload' | 'detecting' | 'manual-select' | 'results' | 'error';
+
+// ── Main Component ────────────────────────────
+
+export const RewardCalculator: React.FC = () => {
+    const { t } = useLanguage();
+
+    // State
+    const [phase, setPhase] = useState<Phase>('upload');
+    const [isDragActive, setIsDragActive] = useState(false);
+    const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
+    const [originalFile, setOriginalFile] = useState<File | null>(null);
+    const [result, setResult] = useState<RewardResult | null>(null);
+    const [error, setError] = useState('');
+
+    // Manual selection fallback
+    const [manualTiersIdx, setManualTiersIdx] = useState(0);
+    const [manualDataIdx, setManualDataIdx] = useState(1);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // ── File handling ─────────────────────────
+
+    const processFile = useCallback(
+        async (file: File) => {
+            setError('');
+            setPhase('detecting');
+            setOriginalFile(file);
+
+            try {
+                const parsed = await parseExcelFile(file);
+                setWorkbook(parsed);
+
+                if (parsed.sheets.length < 2) {
+                    setError(t('rewardCalculator.errorNoTiersSheet'));
+                    setPhase('error');
+                    return;
+                }
+
+                // Smart detection
+                const detection = detectSheets(parsed);
+
+                if (detection.autoDetected && detection.tiersSheetIndex !== null && detection.dataSheetIndex !== null) {
+                    // Auto-detected – run calculation
+                    try {
+                        const calcResult = calculateRewards(
+                            parsed,
+                            detection.tiersSheetIndex,
+                            detection.dataSheetIndex,
+                        );
+                        setResult(calcResult);
+                        setPhase('results');
+                    } catch (err: unknown) {
+                        if (err instanceof RewardEngineError) {
+                            setError(t(err.translationKey));
+                        } else {
+                            setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
+                        }
+                        setPhase('error');
+                    }
+                } else {
+                    // Fallback: manual selection
+                    setManualTiersIdx(detection.tiersSheetIndex ?? 0);
+                    setManualDataIdx(detection.dataSheetIndex ?? (parsed.sheets.length > 1 ? 1 : 0));
+                    setPhase('manual-select');
+                }
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
+                setPhase('error');
+            }
+        },
+        [t],
+    );
+
+    const handleFile = useCallback(
+        (file: File) => {
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                processFile(file);
+            }
+        },
+        [processFile],
+    );
+
+    // ── Drag events ───────────────────────────
+
+    const onDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragActive(true);
+    }, []);
+
+    const onDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragActive(false);
+    }, []);
+
+    const onDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragActive(false);
+            const files = Array.from(e.dataTransfer.files);
+            if (files[0]) handleFile(files[0]);
+        },
+        [handleFile],
+    );
+
+    const onFileInputChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const files = e.target.files;
+            if (files?.[0]) handleFile(files[0]);
+            e.target.value = '';
+        },
+        [handleFile],
+    );
+
+    // ── Manual selection confirm ──────────────
+
+    const handleManualConfirm = useCallback(() => {
+        if (!workbook) return;
+
+        try {
+            const calcResult = calculateRewards(workbook, manualTiersIdx, manualDataIdx);
+            setResult(calcResult);
+            setPhase('results');
+        } catch (err: unknown) {
+            if (err instanceof RewardEngineError) {
+                setError(t(err.translationKey));
+            } else {
+                setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
+            }
+            setPhase('error');
+        }
+    }, [workbook, manualTiersIdx, manualDataIdx, t]);
+
+    // ── Export to XLSX ────────────────────────
+
+    const handleDownload = useCallback(() => {
+        if (!result || !workbook || !originalFile) return;
+
+        const wb = XLSX.utils.book_new();
+
+        // Sheet 1: Shipment data + new "Vypočítaná Odměna (CZK)" column
+        const dataSheet = workbook.sheets.find((s) => s.name === result.dataSheetName);
+        if (dataSheet) {
+            // Build rows: original data + reward column
+            const headerRow = [...dataSheet.headers.map((h) => {
+                // Restore original-ish header names from rawData
+                const rawHeaders = dataSheet.rawData[0] as unknown[];
+                const idx = dataSheet.headers.indexOf(h);
+                return rawHeaders?.[idx] ?? h;
+            }), t('rewardCalculator.colReward') + ' (CZK)'];
+
+            const rows: unknown[][] = [headerRow];
+
+            for (const row of dataSheet.rawData.slice(1)) {
+                const rawRow = row as unknown[];
+
+                // Find matching driver to get reward
+                const nameColIdx = dataSheet.headers.findIndex((_h, idx) => {
+                    const rawName = String(dataSheet.rawData[0]?.[idx as number] ?? '');
+                    return rawName.toLowerCase().replace(/[^a-z]/g, '').match(
+                        /jmeno|jméno|kuryr|kurýr|ridic|řidič|name|driver|user|uživatel|fahrer|kurier|benutzer/,
+                    );
+                });
+
+                const driverName = nameColIdx >= 0 ? String(rawRow[nameColIdx] ?? '').trim() : '';
+                const driverResult = result.drivers.find((d) => d.name === driverName);
+
+                rows.push([...rawRow, driverResult ? driverResult.reward : '']);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, result.dataSheetName);
+        }
+
+        // Sheet 2: Original tier data (unchanged copy)
+        const tiersSheet = workbook.sheets.find((s) => s.name === result.tiersSheetName);
+        if (tiersSheet && tiersSheet.rawData.length > 0) {
+            const ws = XLSX.utils.aoa_to_sheet(tiersSheet.rawData);
+            XLSX.utils.book_append_sheet(wb, ws, result.tiersSheetName);
+        }
+
+        // Generate and download
+        const fileName = originalFile.name.replace(/\.xlsx?$/i, '') + '_rewards.xlsx';
+        XLSX.writeFile(wb, fileName);
+    }, [result, workbook, originalFile, t]);
+
+    // ── Reset ─────────────────────────────────
+
+    const handleReset = useCallback(() => {
+        setPhase('upload');
+        setWorkbook(null);
+        setOriginalFile(null);
+        setResult(null);
+        setError('');
+        setManualTiersIdx(0);
+        setManualDataIdx(1);
+    }, []);
+
+    // ── Format helpers ────────────────────────
+
+    const fmtCurrency = (n: number): string =>
+        n.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ── RENDER ────────────────────────────────
+
+    return (
+        <div className="max-w-screen-xl mx-auto px-6 py-8 animate-[fade-in_0.5s_ease-out]">
+            {/* Agent Header */}
+            <div className="flex items-start gap-4 mb-8">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-800 shadow-lg shadow-emerald-900/20">
+                    <Calculator className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-slate-900">{t('rewardCalculator.title')}</h2>
+                    <p className="text-sm text-slate-500">
+                        {t('rewardCalculator.description')}
+                    </p>
+                </div>
+            </div>
+
+            {/* Phase: Upload */}
+            {(phase === 'upload' || phase === 'detecting') && (
+                <div className="space-y-6">
+                    <div
+                        onDragOver={onDragOver}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                        onClick={() => phase === 'upload' && fileInputRef.current?.click()}
+                        className={`
+                            relative border-2 border-dashed rounded-2xl p-16 text-center transition-all duration-200
+                            enterprise-shadow cursor-pointer
+                            ${isDragActive
+                                ? 'border-emerald-400 bg-emerald-50/50'
+                                : phase === 'detecting'
+                                    ? 'border-blue-300 bg-blue-50/30 cursor-wait'
+                                    : 'border-slate-200 hover:border-emerald-300 bg-white hover:bg-emerald-50/20'
+                            }
+                        `}
+                    >
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".xlsx,.xls"
+                            onChange={onFileInputChange}
+                            disabled={phase === 'detecting'}
+                        />
+
+                        <div className="flex flex-col items-center gap-4">
+                            <div
+                                className={`p-4 rounded-2xl transition-colors ${
+                                    phase === 'detecting'
+                                        ? 'bg-blue-100 text-blue-600'
+                                        : isDragActive
+                                            ? 'bg-emerald-100 text-emerald-600'
+                                            : 'bg-slate-100 text-slate-400'
+                                }`}
+                            >
+                                {phase === 'detecting' ? (
+                                    <Loader2 className="w-10 h-10 animate-spin" />
+                                ) : (
+                                    <Upload className="w-10 h-10" />
+                                )}
+                            </div>
+
+                            <div>
+                                <p className="text-lg font-semibold text-slate-700">
+                                    {t('rewardCalculator.dropzoneLabel')}
+                                </p>
+                                <p className="text-sm text-slate-400 mt-1">
+                                    {t('rewardCalculator.dropzoneSublabel')}
+                                </p>
+                            </div>
+
+                            {phase === 'detecting' ? (
+                                <p className="text-sm text-blue-600 font-medium">
+                                    {t('rewardCalculator.processing')}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-slate-400">
+                                    {t('rewardCalculator.dragAndDrop')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Phase: Manual Sheet Selection */}
+            {phase === 'manual-select' && workbook && (
+                <div className="space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-amber-700">
+                                {t('rewardCalculator.detectionFailed')}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-6 enterprise-shadow space-y-5">
+                        {/* Tiers sheet selection */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                {t('rewardCalculator.selectTiersSheet')}
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={manualTiersIdx}
+                                    onChange={(e) => setManualTiersIdx(Number(e.target.value))}
+                                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                >
+                                    {workbook.sheets.map((sheet, idx) => (
+                                        <option key={idx} value={idx}>
+                                            {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        {/* Data sheet selection */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                {t('rewardCalculator.selectDataSheet')}
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={manualDataIdx}
+                                    onChange={(e) => setManualDataIdx(Number(e.target.value))}
+                                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                >
+                                    {workbook.sheets.map((sheet, idx) => (
+                                        <option key={idx} value={idx}>
+                                            {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        {/* Confirm button */}
+                        <div className="flex items-center gap-3 pt-2">
+                            <button
+                                onClick={handleManualConfirm}
+                                disabled={manualTiersIdx === manualDataIdx}
+                                className={`
+                                    flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all
+                                    ${manualTiersIdx !== manualDataIdx
+                                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:-translate-y-0.5'
+                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    }
+                                `}
+                            >
+                                <Calculator className="w-4 h-4" />
+                                {t('rewardCalculator.confirmSelection')}
+                            </button>
+
+                            <button
+                                onClick={handleReset}
+                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                {t('rewardCalculator.newCalculation')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Phase: Error */}
+            {phase === 'error' && (
+                <div className="space-y-6">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-red-700">{error}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleReset}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {t('rewardCalculator.newCalculation')}
+                    </button>
+                </div>
+            )}
+
+            {/* Phase: Results */}
+            {phase === 'results' && result && (
+                <ResultsView
+                    result={result}
+                    fmtCurrency={fmtCurrency}
+                    onDownload={handleDownload}
+                    onReset={handleReset}
+                    t={t}
+                />
+            )}
+        </div>
+    );
+};
+
+// ── Results View ──────────────────────────────
+
+const ResultsView: React.FC<{
+    result: RewardResult;
+    fmtCurrency: (n: number) => string;
+    onDownload: () => void;
+    onReset: () => void;
+    t: (key: string) => string;
+}> = ({ result, fmtCurrency, onDownload, onReset, t }) => {
+    const totalShipments = result.drivers.reduce((sum, d) => sum + d.shipments, 0);
+
+    return (
+        <div className="space-y-6 animate-[slide-up_0.4s_ease-out]">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl p-5 enterprise-shadow border-l-4 border-l-emerald-500">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
+                                {t('rewardCalculator.driversProcessed')}
+                            </p>
+                            <p className="text-2xl font-bold text-slate-800">{result.drivers.length}</p>
+                        </div>
+                        <div className="text-slate-300">
+                            <Users className="w-5 h-5" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-5 enterprise-shadow border-l-4 border-l-blue-500">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
+                                {t('rewardCalculator.colShipments')}
+                            </p>
+                            <p className="text-2xl font-bold text-slate-800">
+                                {totalShipments.toLocaleString('cs-CZ')}
+                            </p>
+                        </div>
+                        <div className="text-slate-300">
+                            <FileSpreadsheet className="w-5 h-5" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-5 enterprise-shadow border-l-4 border-l-amber-500">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
+                                {t('rewardCalculator.totalReward')}
+                            </p>
+                            <p className="text-2xl font-bold text-slate-800">
+                                {fmtCurrency(result.totalReward)} {t('rewardCalculator.currency')}
+                            </p>
+                        </div>
+                        <div className="text-slate-300">
+                            <Coins className="w-5 h-5" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Detection Info */}
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+                <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>{t('rewardCalculator.detectedTiers')}: <strong className="text-slate-600">{result.tiersSheetName}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>{t('rewardCalculator.detectedData')}: <strong className="text-slate-600">{result.dataSheetName}</strong></span>
+                </div>
+            </div>
+
+            {/* Results Table */}
+            <div className="bg-white rounded-xl enterprise-shadow overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-700">
+                        {t('rewardCalculator.resultTitle')}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={onDownload}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:shadow-lg transition-all"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            {t('rewardCalculator.downloadButton')}
+                        </button>
+                        <button
+                            onClick={onReset}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            {t('rewardCalculator.newCalculation')}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-5 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-10">
+                                    #
+                                </th>
+                                <th className="px-5 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.colName')}
+                                </th>
+                                <th className="px-5 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.colShipments')}
+                                </th>
+                                <th className="px-5 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.colReward')} ({t('rewardCalculator.currency')})
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.drivers.map((driver, idx) => (
+                                <tr
+                                    key={idx}
+                                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-slate-100/60 transition-colors`}
+                                >
+                                    <td className="px-5 py-2.5 text-xs text-slate-400 font-mono">
+                                        {idx + 1}
+                                    </td>
+                                    <td className="px-5 py-2.5 text-sm font-medium text-slate-700">
+                                        {driver.name}
+                                    </td>
+                                    <td className="px-5 py-2.5 text-sm font-mono text-right text-slate-600">
+                                        {driver.shipments.toLocaleString('cs-CZ')}
+                                    </td>
+                                    <td className="px-5 py-2.5 text-sm font-mono text-right font-semibold text-emerald-700">
+                                        {fmtCurrency(driver.reward)}
+                                    </td>
+                                </tr>
+                            ))}
+
+                            {/* Total Row */}
+                            <tr className="bg-slate-800 text-white">
+                                <td className="px-5 py-3" />
+                                <td className="px-5 py-3 text-sm font-bold">
+                                    {t('rewardCalculator.rowTotal')}
+                                </td>
+                                <td className="px-5 py-3 text-sm font-mono text-right font-bold">
+                                    {result.drivers
+                                        .reduce((sum, d) => sum + d.shipments, 0)
+                                        .toLocaleString('cs-CZ')}
+                                </td>
+                                <td className="px-5 py-3 text-sm font-mono text-right font-bold text-emerald-300">
+                                    {fmtCurrency(result.totalReward)}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Tier Reference Table */}
+            <div className="bg-white rounded-xl enterprise-shadow overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-700">
+                        {t('rewardCalculator.tiersUsed')}
+                    </h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-5 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-10">
+                                    #
+                                </th>
+                                <th className="px-5 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.tierFrom')}
+                                </th>
+                                <th className="px-5 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.tierTo')}
+                                </th>
+                                <th className="px-5 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {t('rewardCalculator.tierRate')} ({t('rewardCalculator.currency')})
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.tiers.map((tier, idx) => (
+                                <tr
+                                    key={idx}
+                                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                                >
+                                    <td className="px-5 py-2 text-xs text-slate-400 font-mono">
+                                        {idx + 1}
+                                    </td>
+                                    <td className="px-5 py-2 text-sm font-mono text-right text-slate-600">
+                                        {tier.from}
+                                    </td>
+                                    <td className="px-5 py-2 text-sm font-mono text-right text-slate-600">
+                                        {tier.to !== null ? tier.to : t('rewardCalculator.tierInfinity')}
+                                    </td>
+                                    <td className="px-5 py-2 text-sm font-mono text-right font-semibold text-slate-700">
+                                        {fmtCurrency(tier.rate)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};

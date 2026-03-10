@@ -1,11 +1,15 @@
 /* ============================================
    LogiCore AI – Language Context (i18n)
    Custom implementation without external deps.
-   Default language: 'de' (primary market: Austria)
+   Default language: 'cs' (primary market: Czech)
+   Persists selection in localStorage.
    ============================================ */
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { translations, type Language, type TranslationMap } from '@/translations';
+
+// Storage key for language preference
+const STORAGE_KEY = 'logicore_lang';
 
 // ── Types ───────────────────────────────────
 
@@ -15,6 +19,24 @@ interface LanguageContextValue {
     t: (key: string) => string;
 }
 
+// ── Helpers ─────────────────────────────────
+
+/**
+ * Read persisted language from localStorage.
+ * Falls back to 'cs' if not set or invalid.
+ */
+function getInitialLanguage(): Language {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored === 'cs' || stored === 'en' || stored === 'de') {
+            return stored;
+        }
+    } catch {
+        // localStorage unavailable (SSR, private browsing, etc.)
+    }
+    return 'cs';
+}
+
 // ── Context ─────────────────────────────────
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -22,7 +44,19 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 // ── Provider ────────────────────────────────
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [language, setLanguage] = useState<Language>('de');
+    const [language, setLanguageRaw] = useState<Language>(getInitialLanguage);
+
+    /**
+     * Set language and persist to localStorage.
+     */
+    const setLanguage = useCallback((lang: Language) => {
+        setLanguageRaw(lang);
+        try {
+            localStorage.setItem(STORAGE_KEY, lang);
+        } catch {
+            // Silently ignore write failures
+        }
+    }, []);
 
     /**
      * Resolve a dot-notation key (e.g. 'login.title') against
@@ -53,7 +87,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const value = useMemo<LanguageContextValue>(
         () => ({ language, setLanguage, t }),
-        [language, t],
+        [language, setLanguage, t],
     );
 
     return (

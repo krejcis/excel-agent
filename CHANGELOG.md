@@ -2,6 +2,39 @@
 
 All notable changes to LogiCore AI are documented in this file.
 
+## [0.3.0] – 2026-03-10
+
+### Added
+
+- **Smart Reward Calculator**: New primary agent for calculating progressive courier rewards from a single Excel file.
+  - Single-file drag & drop workflow (`.xlsx` with two sheets: rate tiers + shipment data).
+  - **Smart Sheet Detection**: Automatically identifies which sheet is the tier table and which contains shipment data using fuzzy, case-insensitive, multi-language keyword matching.
+  - **Fallback UI**: If auto-detection fails, users can manually select sheets via dropdown.
+  - **Progressive Tier Calculation**: Iterates rate bands ascending, applies each tier's rate only to shipments within that interval. Empty/zero upper bound = infinity (last tier).
+  - **Results Table**: Displays Name | Shipments | Reward per driver, plus a total row.
+  - **XLSX Export**: Generates a new workbook with original shipment data + calculated reward column, and a copy of the original rate tiers sheet.
+- **English (EN) language**: Full English translation set added alongside Czech and German.
+- **Language Persistence**: Language selection is now saved to `localStorage` (`logicore_lang` key) and restored on reload.
+
+### Changed
+
+- **Default language**: Changed from German (`de`) to Czech (`cs`).
+- **Language Switcher**: Now shows three options: CS | EN | DE (was CS | DE).
+- **Agent Registry**: Reward Calculator is now the first (primary) card on the dashboard. Invoice Auditor moved to second position.
+- **Dashboard footer**: Updated version references to v0.3.0.
+- **PrivacyShield**: Version badge updated to v0.3.0.
+- `package.json` version bumped to `0.3.0`.
+
+### Technical
+
+- `translations.ts` – Complete restructure: added `en` language, added all `rewardCalculator.*` keys for CS/EN/DE.
+- `LanguageContext.tsx` – Default `cs`, localStorage read/write, accepts `'cs' | 'en' | 'de'`.
+- `types/index.ts` – Added `RewardTier`, `DriverReward`, `RewardResult`, `SheetDetection` types, added `'reward-calculator'` to `AgentId` union.
+- `config/agents.ts` – Reward Calculator agent definition (available, emerald color, Calculator icon).
+- `agents/reward-calculator/rewardEngine.ts` – Smart detection algorithm, progressive calculation, localized error handling via translation keys.
+- `agents/reward-calculator/RewardCalculator.tsx` – Full UI component with upload, detection, manual fallback, results, and export phases.
+- TypeScript strict, no `any` types, all comments in English.
+
 ## [0.2.0-beta] – 2026-03-05
 
 ### Security

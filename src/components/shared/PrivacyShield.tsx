@@ -17,7 +17,7 @@ export const PrivacyShield: React.FC = () => {
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-500/30 bg-slate-500/8 select-none">
                 <Tag className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-                    v0.2.0-beta
+                    v0.3.0
                 </span>
             </div>
 
