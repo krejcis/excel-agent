@@ -50,7 +50,7 @@ export const translations: Translations = {
             title: 'Operační Dashboard',
             subtitle:
                 'AI agenti pro spediční operace. Vyberte agenta níže pro zahájení zpracování.',
-            footerNote: 'LogiCore AI v0.3.0 • Data zpracována lokálně v prohlížeči',
+            footerNote: 'LogiCore AI v0.3.1 • Data zpracována lokálně v prohlížeči',
         },
 
         // ── Agent Cards ─────────────────────────────
@@ -239,7 +239,7 @@ export const translations: Translations = {
             title: 'Operations Dashboard',
             subtitle:
                 'AI-powered agents for freight operations. Select an agent below to start processing.',
-            footerNote: 'LogiCore AI v0.3.0 • Data processed locally in browser',
+            footerNote: 'LogiCore AI v0.3.1 • Data processed locally in browser',
         },
 
         // ── Agent Cards ─────────────────────────────
@@ -425,7 +425,7 @@ export const translations: Translations = {
             title: 'Operations-Dashboard',
             subtitle:
                 'KI-gesteuerte Agenten für Speditionsoperationen. Wählen Sie einen Agenten aus, um die Verarbeitung zu starten.',
-            footerNote: 'LogiCore AI v0.3.0 • Daten werden lokal im Browser verarbeitet',
+            footerNote: 'LogiCore AI v0.3.1 • Daten werden lokal im Browser verarbeitet',
         },
 
         // ── Agent Cards ─────────────────────────────
