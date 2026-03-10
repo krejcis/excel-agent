@@ -1,6 +1,6 @@
-# LogiCore AI – Logistics Excel Processor
+# LogiCore AI v0.3.1 – Logistics Excel Processor
 
-AI-powered dashboard for freight forwarding operations: invoice auditing, data preparation, rate normalization, and ad-hoc analytics.
+AI-powered dashboard for freight forwarding operations: invoice auditing, courier reward calculation, data preparation, and ad-hoc analytics.
 
 ## Tech Stack
 
@@ -42,20 +42,40 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ├── api/
 │   └── analyze.ts          # Vercel serverless function (Gemini proxy)
 ├── src/
-│   ├── agents/             # Agent modules (Invoice Auditor, etc.)
-│   ├── components/         # Shared UI components
-│   ├── config/             # Agent registry
-│   ├── services/           # API client (calls /api/analyze)
-│   ├── store/              # Zustand state management
-│   ├── types/              # TypeScript type definitions
-│   ├── utils/              # Excel parser and utilities
-│   ├── App.tsx             # Root component with access gate
-│   ├── main.tsx            # React entry point
-│   └── index.css           # Design system tokens
+│   ├── agents/
+│   │   ├── invoice-auditor/    # Invoice Auditor agent (Quote vs Invoice variance)
+│   │   └── reward-calculator/  # Reward Calculator agent (progressive tier rewards)
+│   ├── components/             # Shared UI components
+│   ├── config/                 # Agent registry
+│   ├── context/                # LanguageContext (CS / EN / DE, localStorage)
+│   ├── services/               # API client (calls /api/analyze)
+│   ├── store/                  # Zustand state management
+│   ├── types/                  # TypeScript type definitions
+│   ├── utils/                  # Excel parser and utilities
+│   ├── App.tsx                 # Root component with access gate
+│   ├── main.tsx                # React entry point
+│   └── index.css               # Design system tokens
+├── public/
+│   └── samples/                # Example Excel files for download in UI
+│       ├── sample_reward_calculator.xlsx
+│       ├── sample_invoice_auditor_quote.xlsx
+│       └── sample_invoice_auditor_invoice.xlsx
 ├── index.html
 ├── vite.config.ts
 └── package.json
 ```
+
+## Sample Files
+
+The `public/samples/` directory contains example Excel files that users can download directly from the UI:
+
+| File | Agent | Description |
+|---|---|---|
+| `sample_reward_calculator.xlsx` | Reward Calculator | Two-sheet workbook: rate tiers + shipment data |
+| `sample_invoice_auditor_quote.xlsx` | Invoice Auditor | Example Quote file |
+| `sample_invoice_auditor_invoice.xlsx` | Invoice Auditor | Example Invoice file |
+
+Download links are shown below each upload dropzone in the respective agent UI.
 
 ## Security Notes
 

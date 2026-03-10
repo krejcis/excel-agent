@@ -2,6 +2,21 @@
 
 All notable changes to LogiCore AI are documented in this file.
 
+## [0.3.1] – 2026-03-10
+
+### Added
+
+- **Sample files**: Added `public/samples/` directory with three example Excel files for new users:
+  - `sample_reward_calculator.xlsx` – example workbook for Reward Calculator (two sheets: rate tiers + shipment data).
+  - `sample_invoice_auditor_quote.xlsx` – example Quote file for Invoice Auditor.
+  - `sample_invoice_auditor_invoice.xlsx` – example Invoice file for Invoice Auditor.
+- **Download links in UI**:
+  - `RewardCalculator.tsx` – link *Stáhnout vzorový soubor* displayed below the upload dropzone sublabel.
+  - `InvoiceAuditor.tsx` – separate download links below the Quote and Invoice dropzones respectively.
+  - Links use the native `download` attribute and point to `/samples/*.xlsx`.
+
+---
+
 ## [0.3.0] – 2026-03-10
 
 ### Added

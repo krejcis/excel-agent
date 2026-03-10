@@ -284,10 +284,10 @@ export const RewardCalculator: React.FC = () => {
                         <div className="flex flex-col items-center gap-4">
                             <div
                                 className={`p-4 rounded-2xl transition-colors ${phase === 'detecting'
-                                        ? 'bg-blue-100 text-blue-600'
-                                        : isDragActive
-                                            ? 'bg-emerald-100 text-emerald-600'
-                                            : 'bg-slate-100 text-slate-400'
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : isDragActive
+                                        ? 'bg-emerald-100 text-emerald-600'
+                                        : 'bg-slate-100 text-slate-400'
                                     }`}
                             >
                                 {phase === 'detecting' ? (
