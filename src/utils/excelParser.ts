@@ -6,10 +6,53 @@
 import * as XLSX from 'xlsx';
 import type { ParsedSheet, ParsedWorkbook } from '@/types';
 
+/** Maximum number of rows to scan when looking for the header row. */
+const HEADER_SCAN_DEPTH = 10;
+
+/**
+ * Score a candidate row as a header row.
+ * Higher score = more likely to be a header.
+ * Criteria: non-empty text cells that are not purely numeric.
+ */
+function scoreHeaderRow(row: unknown[]): number {
+    let score = 0;
+    for (const cell of row) {
+        const s = String(cell ?? '').trim();
+        if (s === '') continue;
+        // Prefer text cells, penalise pure numbers
+        if (isNaN(Number(s.replace(',', '.'))) || s.length > 6) {
+            score += 2;
+        } else {
+            score += 1;
+        }
+    }
+    return score;
+}
+
+/**
+ * Find the most likely header row index within the first HEADER_SCAN_DEPTH rows.
+ * Returns 0 if no better candidate is found.
+ */
+function detectHeaderRowIndex(rawData: unknown[][]): number {
+    const scanLimit = Math.min(HEADER_SCAN_DEPTH, rawData.length);
+    let bestIdx = 0;
+    let bestScore = -1;
+
+    for (let i = 0; i < scanLimit; i++) {
+        const score = scoreHeaderRow(rawData[i] as unknown[]);
+        if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+        }
+    }
+
+    return bestIdx;
+}
+
 /**
  * Parses an Excel file (.xlsx) entirely client-side.
- * Applies automatic data cleaning: trims whitespace, normalizes headers,
- * and filters out completely empty rows.
+ * Deep-scans the first 10 rows of each sheet to locate the header row,.
+ * then cleans headers and builds typed row objects.
  */
 export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
     const buffer = await file.arrayBuffer();
@@ -18,37 +61,59 @@ export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
     const sheets: ParsedSheet[] = workbook.SheetNames.map((name) => {
         const sheet = workbook.Sheets[name];
 
-        // Get raw data as array-of-arrays
+        // Get raw data as array-of-arrays (keep blank rows for deep scan)
+        const rawDataAll = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+            header: 1,
+            defval: '',
+            blankrows: true,
+        });
+
+        if (rawDataAll.length === 0) {
+            return { name, headers: [], rows: [], rawData: [] };
+        }
+
+        // ── Deep scan: find the header row ────────────────────────────────────
+        const headerRowIdx = detectHeaderRowIndex(rawDataAll as unknown[][]);
+
+        // Extract and clean headers from detected row
+        const rawHeaders = (rawDataAll[headerRowIdx] as unknown[]).map((h) =>
+            cleanHeaderValue(String(h ?? ''))
+        );
+
+        // Strip empty-string header slots (trailing empty cells)
+        const validHeaderCount = rawHeaders.filter((h) => h !== '').length || rawHeaders.length;
+
+        // Re-read rawData without blankrows for clean row iteration
         const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
             header: 1,
             defval: '',
             blankrows: false,
-        });
+        }) as unknown[][];
 
-        if (rawData.length === 0) {
-            return { name, headers: [], rows: [], rawData: [] };
-        }
-
-        // Extract and clean headers
-        const rawHeaders = (rawData[0] as unknown[]).map((h) =>
-            cleanHeaderValue(String(h ?? ''))
-        );
-
-        // Build rows as objects keyed by cleaned headers
+        // Build rows as objects keyed by cleaned headers (skip rows up to & including header)
         const rows: Record<string, unknown>[] = [];
-        for (let i = 1; i < rawData.length; i++) {
+        const dataStartIdx = rawData.findIndex((row) => {
+            // Find this same header row in the blankrows=false version
+            const s = scoreHeaderRow(row as unknown[]);
+            return s === scoreHeaderRow(rawDataAll[headerRowIdx] as unknown[]);
+        });
+        const firstDataRow = dataStartIdx >= 0 ? dataStartIdx + 1 : headerRowIdx + 1;
+
+        for (let i = firstDataRow; i < rawData.length; i++) {
             const rawRow = rawData[i] as unknown[];
             const row: Record<string, unknown> = {};
             let hasValue = false;
 
-            rawHeaders.forEach((header, colIdx) => {
+            for (let colIdx = 0; colIdx < validHeaderCount; colIdx++) {
+                const header = rawHeaders[colIdx];
+                if (!header) continue;
                 const val = rawRow[colIdx] ?? '';
                 const cleaned = cleanCellValue(val);
                 row[header] = cleaned;
                 if (cleaned !== '' && cleaned !== null && cleaned !== undefined) {
                     hasValue = true;
                 }
-            });
+            }
 
             // Skip entirely empty rows
             if (hasValue) {
@@ -56,7 +121,7 @@ export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
             }
         }
 
-        return { name, headers: rawHeaders, rows, rawData: rawData as unknown[][] };
+        return { name, headers: rawHeaders.slice(0, validHeaderCount), rows, rawData };
     });
 
     const totalRows = sheets.reduce((acc, s) => acc + s.rows.length, 0);

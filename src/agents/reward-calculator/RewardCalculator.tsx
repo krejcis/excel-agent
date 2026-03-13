@@ -17,6 +17,7 @@ import {
     Users,
     Coins,
     ChevronDown,
+    SlidersHorizontal,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { parseExcelFile } from '@/utils/excelParser';
@@ -30,7 +31,25 @@ import type { ParsedWorkbook, RewardResult } from '@/types';
 
 // ── Types ─────────────────────────────────────
 
-type Phase = 'upload' | 'detecting' | 'manual-select' | 'results' | 'error';
+type Phase = 'upload' | 'detecting' | 'manual-select' | 'results';
+
+/** Column mapping chosen by the user in the manual-select phase */
+interface ColumnMapping {
+    tiersSheetIdx: number;
+    dataSheetIdx: number;
+    nameCol: string;
+    countCol: string;
+    lowerBoundCol: string;
+    rateCol: string;
+}
+
+// ── Helper: get all non-empty header options from a sheet ─────────────────
+
+function getHeaderOptions(workbook: ParsedWorkbook, sheetIdx: number): string[] {
+    const sheet = workbook.sheets[sheetIdx];
+    if (!sheet) return [];
+    return sheet.headers.filter((h) => h !== '');
+}
 
 // ── Main Component ────────────────────────────
 
@@ -43,11 +62,14 @@ export const RewardCalculator: React.FC = () => {
     const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const [result, setResult] = useState<RewardResult | null>(null);
-    const [error, setError] = useState('');
+    const [calcError, setCalcError] = useState('');
 
     // Manual selection fallback
     const [manualTiersIdx, setManualTiersIdx] = useState(0);
     const [manualDataIdx, setManualDataIdx] = useState(1);
+
+    // Column mapping (manual override)
+    const [columnMapping, setColumnMapping] = useState<Partial<ColumnMapping>>({});
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +77,7 @@ export const RewardCalculator: React.FC = () => {
 
     const processFile = useCallback(
         async (file: File) => {
-            setError('');
+            setCalcError('');
             setPhase('detecting');
             setOriginalFile(file);
 
@@ -64,8 +86,11 @@ export const RewardCalculator: React.FC = () => {
                 setWorkbook(parsed);
 
                 if (parsed.sheets.length < 2) {
-                    setError(t('rewardCalculator.errorNoTiersSheet'));
-                    setPhase('error');
+                    // Not enough sheets – go directly to manual select with 1 sheet
+                    setManualTiersIdx(0);
+                    setManualDataIdx(0);
+                    setColumnMapping({});
+                    setPhase('manual-select');
                     return;
                 }
 
@@ -73,7 +98,7 @@ export const RewardCalculator: React.FC = () => {
                 const detection = detectSheets(parsed);
 
                 if (detection.autoDetected && detection.tiersSheetIndex !== null && detection.dataSheetIndex !== null) {
-                    // Auto-detected – run calculation
+                    // Auto-detected – try to run calculation directly
                     try {
                         const calcResult = calculateRewards(
                             parsed,
@@ -82,23 +107,24 @@ export const RewardCalculator: React.FC = () => {
                         );
                         setResult(calcResult);
                         setPhase('results');
-                    } catch (err: unknown) {
-                        if (err instanceof RewardEngineError) {
-                            setError(t(err.translationKey));
-                        } else {
-                            setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
-                        }
-                        setPhase('error');
+                    } catch {
+                        // Calculation failed even after auto-detect → fall through to manual
+                        setManualTiersIdx(detection.tiersSheetIndex);
+                        setManualDataIdx(detection.dataSheetIndex);
+                        setColumnMapping({});
+                        setPhase('manual-select');
                     }
                 } else {
-                    // Fallback: manual selection
+                    // Auto-detect failed → manual sheet selection
                     setManualTiersIdx(detection.tiersSheetIndex ?? 0);
                     setManualDataIdx(detection.dataSheetIndex ?? (parsed.sheets.length > 1 ? 1 : 0));
+                    setColumnMapping({});
                     setPhase('manual-select');
                 }
             } catch (err: unknown) {
-                setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
-                setPhase('error');
+                // Hard parse error – still fall back to manual if possible
+                setCalcError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
+                setPhase('manual-select');
             }
         },
         [t],
@@ -147,24 +173,41 @@ export const RewardCalculator: React.FC = () => {
         [handleFile],
     );
 
-    // ── Manual selection confirm ──────────────
+    // ── Manual column mapping confirm ─────────
 
     const handleManualConfirm = useCallback(() => {
         if (!workbook) return;
+        setCalcError('');
+
+        // Build override only from fields the user explicitly filled in
+        const override = {
+            nameCol: columnMapping.nameCol || undefined,
+            countCol: columnMapping.countCol || undefined,
+            lowerBoundCol: columnMapping.lowerBoundCol || undefined,
+            rateCol: columnMapping.rateCol || undefined,
+        };
+        const hasOverride = Object.values(override).some(Boolean);
 
         try {
-            const calcResult = calculateRewards(workbook, manualTiersIdx, manualDataIdx);
+            const calcResult = calculateRewards(
+                workbook,
+                manualTiersIdx,
+                manualDataIdx,
+                hasOverride ? override : undefined,
+            );
             setResult(calcResult);
             setPhase('results');
         } catch (err: unknown) {
+            // Column detection still failed even after manual sheet pick
+            // Show inline error and keep user on manual-select
             if (err instanceof RewardEngineError) {
-                setError(t(err.translationKey));
+                setCalcError(t(err.translationKey));
             } else {
-                setError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
+                setCalcError(err instanceof Error ? err.message : t('rewardCalculator.parseFailed'));
             }
-            setPhase('error');
         }
-    }, [workbook, manualTiersIdx, manualDataIdx, t]);
+    }, [workbook, manualTiersIdx, manualDataIdx, columnMapping, t]);
+
 
     // ── Export to XLSX ────────────────────────
 
@@ -176,9 +219,7 @@ export const RewardCalculator: React.FC = () => {
         // Sheet 1: Shipment data + new "Vypočítaná Odměna (CZK)" column
         const dataSheet = workbook.sheets.find((s) => s.name === result.dataSheetName);
         if (dataSheet) {
-            // Build rows: original data + reward column
             const headerRow = [...dataSheet.headers.map((h) => {
-                // Restore original-ish header names from rawData
                 const rawHeaders = dataSheet.rawData[0] as unknown[];
                 const idx = dataSheet.headers.indexOf(h);
                 return rawHeaders?.[idx] ?? h;
@@ -188,18 +229,14 @@ export const RewardCalculator: React.FC = () => {
 
             for (const row of dataSheet.rawData.slice(1)) {
                 const rawRow = row as unknown[];
-
-                // Find matching driver to get reward
                 const nameColIdx = dataSheet.headers.findIndex((_h, idx) => {
                     const rawName = String(dataSheet.rawData[0]?.[idx as number] ?? '');
                     return rawName.toLowerCase().replace(/[^a-z]/g, '').match(
                         /jmeno|jméno|kuryr|kurýr|ridic|řidič|name|driver|user|uživatel|fahrer|kurier|benutzer/,
                     );
                 });
-
                 const driverName = nameColIdx >= 0 ? String(rawRow[nameColIdx] ?? '').trim() : '';
                 const driverResult = result.drivers.find((d) => d.name === driverName);
-
                 rows.push([...rawRow, driverResult ? driverResult.reward : '']);
             }
 
@@ -207,14 +244,13 @@ export const RewardCalculator: React.FC = () => {
             XLSX.utils.book_append_sheet(wb, ws, result.dataSheetName);
         }
 
-        // Sheet 2: Original tier data (unchanged copy)
+        // Sheet 2: Original tier data
         const tiersSheet = workbook.sheets.find((s) => s.name === result.tiersSheetName);
         if (tiersSheet && tiersSheet.rawData.length > 0) {
             const ws = XLSX.utils.aoa_to_sheet(tiersSheet.rawData);
             XLSX.utils.book_append_sheet(wb, ws, result.tiersSheetName);
         }
 
-        // Generate and download
         const fileName = originalFile.name.replace(/\.xlsx?$/i, '') + '_rewards.xlsx';
         XLSX.writeFile(wb, fileName);
     }, [result, workbook, originalFile, t]);
@@ -226,15 +262,24 @@ export const RewardCalculator: React.FC = () => {
         setWorkbook(null);
         setOriginalFile(null);
         setResult(null);
-        setError('');
+        setCalcError('');
         setManualTiersIdx(0);
         setManualDataIdx(1);
+        setColumnMapping({});
     }, []);
 
     // ── Format helpers ────────────────────────
 
     const fmtCurrency = (n: number): string =>
         n.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ── Column mapping helpers ─────────────────
+
+    const tiersHeaders = workbook ? getHeaderOptions(workbook, manualTiersIdx) : [];
+    const dataHeaders  = workbook ? getHeaderOptions(workbook, manualDataIdx)  : [];
+
+    const setMap = (key: keyof ColumnMapping, val: string | number) =>
+        setColumnMapping((prev) => ({ ...prev, [key]: val }));
 
     // ── RENDER ────────────────────────────────
 
@@ -328,63 +373,130 @@ export const RewardCalculator: React.FC = () => {
                 </div>
             )}
 
-            {/* Phase: Manual Sheet Selection */}
+            {/* Phase: Manual Column Mapping */}
             {phase === 'manual-select' && workbook && (
-                <div className="space-y-6">
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-5 animate-[slide-up_0.3s_ease-out]">
+
+                    {/* elegant info banner – no harsh error */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 flex items-start gap-4">
+                        <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
+                            <SlidersHorizontal className="w-5 h-5 text-amber-600" />
+                        </div>
                         <div>
-                            <p className="text-sm font-semibold text-amber-700">
-                                {t('rewardCalculator.detectionFailed')}
+                            <p className="text-sm font-semibold text-amber-800">
+                                Systém potřebuje upřesnit sloupce
+                            </p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                Automatická detekce nebyla přesvědčivá. Vyberte prosím správné listy a přiřaďte sloupce ručně – výpočet pak proběhne přesně.
                             </p>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl p-6 enterprise-shadow space-y-5">
-                        {/* Tiers sheet selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                {t('rewardCalculator.selectTiersSheet')}
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={manualTiersIdx}
-                                    onChange={(e) => setManualTiersIdx(Number(e.target.value))}
-                                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                >
-                                    {workbook.sheets.map((sheet, idx) => (
-                                        <option key={idx} value={idx}>
-                                            {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    {/* Inline calc error (only when user already clicked Přepočítat) */}
+                    {calcError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            <p className="text-xs text-red-700">{calcError}</p>
+                        </div>
+                    )}
+
+                    <div className="bg-white rounded-xl p-6 enterprise-shadow space-y-6">
+
+                        {/* ── Sheet selection ── */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {/* Tiers sheet */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                    {t('rewardCalculator.selectTiersSheet')}
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        value={manualTiersIdx}
+                                        onChange={(e) => {
+                                            setManualTiersIdx(Number(e.target.value));
+                                            setColumnMapping((prev) => ({ ...prev, lowerBoundCol: undefined, rateCol: undefined }));
+                                        }}
+                                        className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                    >
+                                        {workbook.sheets.map((sheet, idx) => (
+                                            <option key={idx} value={idx}>
+                                                {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+
+                            {/* Data sheet */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                    {t('rewardCalculator.selectDataSheet')}
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        value={manualDataIdx}
+                                        onChange={(e) => {
+                                            setManualDataIdx(Number(e.target.value));
+                                            setColumnMapping((prev) => ({ ...prev, nameCol: undefined, countCol: undefined }));
+                                        }}
+                                        className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                    >
+                                        {workbook.sheets.map((sheet, idx) => (
+                                            <option key={idx} value={idx}>
+                                                {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Data sheet selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                {t('rewardCalculator.selectDataSheet')}
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={manualDataIdx}
-                                    onChange={(e) => setManualDataIdx(Number(e.target.value))}
-                                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                >
-                                    {workbook.sheets.map((sheet, idx) => (
-                                        <option key={idx} value={idx}>
-                                            {sheet.name} ({sheet.rows.length} {t('invoiceAuditor.rows')})
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        {/* ── Column mapping ── */}
+                        <div className="border-t border-slate-100 pt-5">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+                                Přiřazení sloupců
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                                {/* Data sheet columns */}
+                                <ColumnDropdown
+                                    label="Kde je jméno / kurýr?"
+                                    value={columnMapping.nameCol ?? ''}
+                                    options={dataHeaders}
+                                    onChange={(v) => setMap('nameCol', v)}
+                                    hint="List s kurýry / řidiči"
+                                />
+                                <ColumnDropdown
+                                    label="Kde je počet zásilek?"
+                                    value={columnMapping.countCol ?? ''}
+                                    options={dataHeaders}
+                                    onChange={(v) => setMap('countCol', v)}
+                                    hint="List s kurýry / řidiči"
+                                />
+
+                                {/* Tiers sheet columns */}
+                                <ColumnDropdown
+                                    label="Kde je spodní hranice (od)?"
+                                    value={columnMapping.lowerBoundCol ?? ''}
+                                    options={tiersHeaders}
+                                    onChange={(v) => setMap('lowerBoundCol', v)}
+                                    hint="List se sazbami"
+                                />
+                                <ColumnDropdown
+                                    label="Kde je sazba / odměna?"
+                                    value={columnMapping.rateCol ?? ''}
+                                    options={tiersHeaders}
+                                    onChange={(v) => setMap('rateCol', v)}
+                                    hint="List se sazbami"
+                                />
                             </div>
                         </div>
 
-                        {/* Confirm button */}
-                        <div className="flex items-center gap-3 pt-2">
+                        {/* ── Action buttons ── */}
+                        <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
                             <button
                                 onClick={handleManualConfirm}
                                 disabled={manualTiersIdx === manualDataIdx}
@@ -397,7 +509,7 @@ export const RewardCalculator: React.FC = () => {
                                 `}
                             >
                                 <Calculator className="w-4 h-4" />
-                                {t('rewardCalculator.confirmSelection')}
+                                Přepočítat
                             </button>
 
                             <button
@@ -409,26 +521,6 @@ export const RewardCalculator: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Phase: Error */}
-            {phase === 'error' && (
-                <div className="space-y-6">
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="text-sm font-semibold text-red-700">{error}</p>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={handleReset}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-colors"
-                    >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        {t('rewardCalculator.newCalculation')}
-                    </button>
                 </div>
             )}
 
@@ -445,6 +537,34 @@ export const RewardCalculator: React.FC = () => {
         </div>
     );
 };
+
+// ── Column Dropdown helper component ──────────
+
+const ColumnDropdown: React.FC<{
+    label: string;
+    hint: string;
+    value: string;
+    options: string[];
+    onChange: (val: string) => void;
+}> = ({ label, hint, value, options, onChange }) => (
+    <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+        <p className="text-[11px] text-slate-400 mb-1.5">{hint}</p>
+        <div className="relative">
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+            >
+                <option value="">— automaticky —</option>
+                {options.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        </div>
+    </div>
+);
 
 // ── Results View ──────────────────────────────
 

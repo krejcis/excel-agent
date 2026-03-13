@@ -4,24 +4,28 @@
    Calculation. All processing client-side.
    ============================================ */
 
-import type { ParsedSheet, ParsedWorkbook, RewardTier, DriverReward, RewardResult, SheetDetection } from '@/types';
+import type { ParsedSheet, ParsedWorkbook, RewardTier, DriverReward, RewardResult, SheetDetection, ColumnOverride } from '@/types';
 
 // ── Keyword lists for fuzzy detection ───────
 
 /** Keywords indicating a lower-bound column in a tier sheet */
 const LOWER_BOUND_KEYWORDS: string[] = [
     'od', 'min', 'start', 'from', 'von', 'ab',
+    'spodní hranice', 'spodni hranice', 'od zasilek', 'from shipments',
 ];
 
 /** Keywords indicating a rate/reward column in a tier sheet */
 const RATE_KEYWORDS: string[] = [
-    'sazba', 'cena', 'odmena', 'odměna', 'odmena', 'rate', 'reward',
+    'sazba', 'cena', 'odmena', 'odměna', 'rate', 'reward',
     'prämie', 'pramie', 'satz', 'betrag', 'price',
+    'odmena za', 'odměna za', 'cena za', 'rate per', 'sazba za',
+    'odmena celkem', 'odměna celkem',
 ];
 
 /** Keywords indicating an upper-bound column in a tier sheet */
 const UPPER_BOUND_KEYWORDS: string[] = [
     'do', 'max', 'end', 'to', 'bis',
+    'horní hranice', 'horni hranice', 'do zasilek',
 ];
 
 /** Keywords indicating a driver name column */
@@ -29,6 +33,7 @@ const NAME_KEYWORDS: string[] = [
     'jmeno', 'jméno', 'kurýr', 'kuryr', 'ridic', 'řidič', 'ridič',
     'name', 'driver', 'user', 'uživatel', 'uzivatel',
     'fahrer', 'kurier', 'benutzer',
+    'uzivatel', 'prijmeni', 'příjmení', 'jmeno kuryre', 'jméno kurýra',
 ];
 
 /** Keywords indicating a shipment count column */
@@ -36,6 +41,8 @@ const COUNT_KEYWORDS: string[] = [
     'zasilek', 'zásilek', 'pocet', 'počet', 'ks', 'kusu',
     'count', 'shipment', 'shipments', 'amount', 'total',
     'sendungen', 'anzahl', 'pakete',
+    'zasilek celkem', 'zásilek celkem', 'pocet zasilek', 'počet zásilek',
+    'total shipments', 'celkem zasilek', 'celkem zásilek',
 ];
 
 // ── Normalize helper ────────────────────────
@@ -49,7 +56,8 @@ function normalize(raw: string): string {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // strip diacritics
-        .replace(/[^a-z0-9]/g, '')       // remove non-alphanumeric
+        .replace(/[^a-z0-9 ]/g, ' ')     // keep spaces, remove other non-alphanumeric
+        .replace(/\s+/g, ' ')            // collapse multiple spaces
         .trim();
 }
 
@@ -59,9 +67,19 @@ function normalize(raw: string): string {
  */
 function headerMatchesAny(header: string, keywords: string[]): boolean {
     const norm = normalize(header);
+    // Also try without spaces for backwards compatibility
+    const normCompact = norm.replace(/\s/g, '');
     return keywords.some((kw) => {
         const nkw = normalize(kw);
-        return norm === nkw || norm.includes(nkw) || nkw.includes(norm);
+        const nkwCompact = nkw.replace(/\s/g, '');
+        return (
+            norm === nkw ||
+            norm.includes(nkw) ||
+            nkw.includes(norm) ||
+            normCompact === nkwCompact ||
+            normCompact.includes(nkwCompact) ||
+            nkwCompact.includes(normCompact)
+        );
     });
 }
 
@@ -135,11 +153,14 @@ export class RewardEngineError extends Error {
 /**
  * Extract tier data from a parsed sheet.
  * Throws RewardEngineError with appropriate translation key on failure.
+ * @param override – if provided, uses these column names directly instead of fuzzy detection.
  */
-export function extractTiers(sheet: ParsedSheet): RewardTier[] {
+export function extractTiers(sheet: ParsedSheet, override?: ColumnOverride): RewardTier[] {
     const headers = sheet.headers;
 
-    const lbIdx = findColumnIndex(headers, LOWER_BOUND_KEYWORDS);
+    const lbIdx = override?.lowerBoundCol
+        ? headers.indexOf(override.lowerBoundCol)
+        : findColumnIndex(headers, LOWER_BOUND_KEYWORDS);
     if (lbIdx === -1) {
         throw new RewardEngineError(
             'rewardCalculator.errorNoLowerBound',
@@ -147,7 +168,9 @@ export function extractTiers(sheet: ParsedSheet): RewardTier[] {
         );
     }
 
-    const rateIdx = findColumnIndex(headers, RATE_KEYWORDS);
+    const rateIdx = override?.rateCol
+        ? headers.indexOf(override.rateCol)
+        : findColumnIndex(headers, RATE_KEYWORDS);
     if (rateIdx === -1) {
         throw new RewardEngineError(
             'rewardCalculator.errorNoRate',
@@ -156,7 +179,9 @@ export function extractTiers(sheet: ParsedSheet): RewardTier[] {
     }
 
     // Optional: upper bound column
-    const ubIdx = findColumnIndex(headers, UPPER_BOUND_KEYWORDS);
+    const ubIdx = override?.upperBoundCol
+        ? headers.indexOf(override.upperBoundCol)
+        : findColumnIndex(headers, UPPER_BOUND_KEYWORDS);
 
     const lbHeader = headers[lbIdx];
     const rateHeader = headers[rateIdx];
@@ -213,11 +238,14 @@ interface RawDriver {
 /**
  * Extract driver names and shipment counts from data sheet.
  * Throws RewardEngineError with appropriate translation key on failure.
+ * @param override – if provided, uses these column names directly instead of fuzzy detection.
  */
-export function extractDrivers(sheet: ParsedSheet): RawDriver[] {
+export function extractDrivers(sheet: ParsedSheet, override?: ColumnOverride): RawDriver[] {
     const headers = sheet.headers;
 
-    const nameIdx = findColumnIndex(headers, NAME_KEYWORDS);
+    const nameIdx = override?.nameCol
+        ? headers.indexOf(override.nameCol)
+        : findColumnIndex(headers, NAME_KEYWORDS);
     if (nameIdx === -1) {
         throw new RewardEngineError(
             'rewardCalculator.errorNoName',
@@ -225,7 +253,9 @@ export function extractDrivers(sheet: ParsedSheet): RawDriver[] {
         );
     }
 
-    const countIdx = findColumnIndex(headers, COUNT_KEYWORDS);
+    const countIdx = override?.countCol
+        ? headers.indexOf(override.countCol)
+        : findColumnIndex(headers, COUNT_KEYWORDS);
     if (countIdx === -1) {
         throw new RewardEngineError(
             'rewardCalculator.errorNoCount',
@@ -304,18 +334,20 @@ export function calculateProgressiveReward(
 /**
  * Run the complete reward calculation given a workbook and
  * the indices of the tier/data sheets.
+ * @param override – optional manual column mapping to bypass fuzzy detection.
  */
 export function calculateRewards(
     workbook: ParsedWorkbook,
     tiersSheetIndex: number,
     dataSheetIndex: number,
+    override?: ColumnOverride,
 ): RewardResult {
     const tiersSheet = workbook.sheets[tiersSheetIndex];
     const dataSheet = workbook.sheets[dataSheetIndex];
 
-    // Extract structured data
-    const tiers = extractTiers(tiersSheet);
-    const rawDrivers = extractDrivers(dataSheet);
+    // Extract structured data (pass override for direct column lookup)
+    const tiers = extractTiers(tiersSheet, override);
+    const rawDrivers = extractDrivers(dataSheet, override);
 
     // Calculate reward for each driver
     const drivers: DriverReward[] = rawDrivers.map((d) => ({

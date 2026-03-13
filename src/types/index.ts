@@ -56,6 +56,16 @@ export interface SheetDetection {
     autoDetected: boolean;
 }
 
+/** Optional manual column override – bypasses fuzzy detection when provided */
+export interface ColumnOverride {
+    nameCol?: string;      // header name for driver name
+    countCol?: string;     // header name for shipment count
+    lowerBoundCol?: string; // header name for tier lower bound
+    rateCol?: string;      // header name for tier rate
+    upperBoundCol?: string; // header name for tier upper bound (optional)
+}
+
+
 // ── Invoice Auditor Types ───────────────────
 
 export interface QuoteLineItem {
