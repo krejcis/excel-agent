@@ -366,7 +366,7 @@ export const InvoiceAuditor: React.FC = () => {
                                 disabled={processing.status === 'processing'}
                             />
                             <a
-                                href="/samples/sample_invoice_auditor_quote.xlsx"
+                                href="/samples/sample_invoice_auditor_QUOTE.xlsx"
                                 download
                                 className="text-sm text-blue-500 hover:underline"
                             >
@@ -384,7 +384,7 @@ export const InvoiceAuditor: React.FC = () => {
                                 disabled={processing.status === 'processing'}
                             />
                             <a
-                                href="/samples/sample_invoice_auditor_invoice.xlsx"
+                                href="/samples/sample_invoice_auditor_INVOICE.xlsx"
                                 download
                                 className="text-sm text-blue-500 hover:underline"
                             >
