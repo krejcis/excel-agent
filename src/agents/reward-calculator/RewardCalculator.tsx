@@ -51,6 +51,11 @@ function getHeaderOptions(workbook: ParsedWorkbook, sheetIdx: number): string[] 
     return sheet.headers.filter((h) => h !== '');
 }
 
+/** Strip diacritics from a string for display purposes (keeps spaces, underscores, etc.). */
+function stripDiacritics(s: string): string {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // ── Main Component ────────────────────────────
 
 export const RewardCalculator: React.FC = () => {
@@ -411,7 +416,7 @@ export const RewardCalculator: React.FC = () => {
                                     className="text-sm text-blue-500 hover:underline"
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    Stáhnout vzorový soubor
+                                    {t('rewardCalculator.downloadSample')}
                                 </a>
                             </div>
 
@@ -440,10 +445,10 @@ export const RewardCalculator: React.FC = () => {
                         </div>
                         <div>
                             <p className="text-sm font-semibold text-amber-800">
-                                Systém potřebuje upřesnit sloupce
+                                {t('rewardCalculator.mappingBannerTitle')}
                             </p>
                             <p className="text-xs text-amber-600 mt-0.5">
-                                Automatická detekce nebyla přesvědčivá. Vyberte prosím správné listy a přiřaďte sloupce ručně – výpočet pak proběhne přesně.
+                                {t('rewardCalculator.mappingBannerDesc')}
                             </p>
                         </div>
                     </div>
@@ -512,41 +517,45 @@ export const RewardCalculator: React.FC = () => {
                         {/* ── Column mapping ── */}
                         <div className="border-t border-slate-100 pt-5">
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
-                                Přiřazení sloupců
+                                {t('rewardCalculator.columnMappingSection')}
                             </p>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
                                 {/* Data sheet columns */}
                                 <ColumnDropdown
-                                    label="Kde je jméno / kurýr?"
+                                    label={t('rewardCalculator.labelNameCol')}
                                     value={columnMapping.nameCol ?? ''}
                                     options={dataHeaders}
                                     onChange={(v) => setMap('nameCol', v)}
-                                    hint="List s kurýry / řidiči"
+                                    hint={t('rewardCalculator.hintDataSheet')}
+                                    autoLabel={t('rewardCalculator.autoDetectOption')}
                                 />
                                 <ColumnDropdown
-                                    label="Kde je počet zásilek?"
+                                    label={t('rewardCalculator.labelCountCol')}
                                     value={columnMapping.countCol ?? ''}
                                     options={dataHeaders}
                                     onChange={(v) => setMap('countCol', v)}
-                                    hint="List s kurýry / řidiči"
+                                    hint={t('rewardCalculator.hintDataSheet')}
+                                    autoLabel={t('rewardCalculator.autoDetectOption')}
                                 />
 
                                 {/* Tiers sheet columns */}
                                 <ColumnDropdown
-                                    label="Kde je spodní hranice (od)?"
+                                    label={t('rewardCalculator.labelLowerBoundCol')}
                                     value={columnMapping.lowerBoundCol ?? ''}
                                     options={tiersHeaders}
                                     onChange={(v) => setMap('lowerBoundCol', v)}
-                                    hint="List se sazbami"
+                                    hint={t('rewardCalculator.hintTiersSheet')}
+                                    autoLabel={t('rewardCalculator.autoDetectOption')}
                                 />
                                 <ColumnDropdown
-                                    label="Kde je sazba / odměna?"
+                                    label={t('rewardCalculator.labelRateCol')}
                                     value={columnMapping.rateCol ?? ''}
                                     options={tiersHeaders}
                                     onChange={(v) => setMap('rateCol', v)}
-                                    hint="List se sazbami"
+                                    hint={t('rewardCalculator.hintTiersSheet')}
+                                    autoLabel={t('rewardCalculator.autoDetectOption')}
                                 />
                             </div>
                         </div>
@@ -565,7 +574,7 @@ export const RewardCalculator: React.FC = () => {
                                 `}
                             >
                                 <Calculator className="w-4 h-4" />
-                                Přepočítat
+                                {t('rewardCalculator.recalculate')}
                             </button>
 
                             <button
@@ -607,7 +616,9 @@ const ColumnDropdown: React.FC<{
     value: string;
     options: string[];
     onChange: (val: string) => void;
-}> = ({ label, hint, value, options, onChange }) => (
+    /** Label for the auto-detect placeholder option */
+    autoLabel: string;
+}> = ({ label, hint, value, options, onChange, autoLabel }) => (
     <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
         <p className="text-[11px] text-slate-400 mb-1.5">{hint}</p>
@@ -617,9 +628,9 @@ const ColumnDropdown: React.FC<{
                 onChange={(e) => onChange(e.target.value)}
                 className="w-full appearance-none px-4 py-2.5 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
             >
-                <option value="">— automaticky —</option>
+                <option value="">{autoLabel}</option>
                 {options.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>{stripDiacritics(opt)}</option>
                 ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -714,10 +725,10 @@ const ResultsView: React.FC<{
                         <button
                             onClick={onChangeMapping}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all"
-                            title="Změnit mapování sloupců"
+                            title={t('rewardCalculator.changeMapping')}
                         >
                             <SlidersHorizontal className="w-3.5 h-3.5" />
-                            Změnit mapování
+                            {t('rewardCalculator.changeMapping')}
                         </button>
                         <button
                             onClick={onDownload}
