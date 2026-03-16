@@ -19,7 +19,7 @@ import {
     ChevronDown,
     SlidersHorizontal,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { parseExcelFile } from '@/utils/excelParser';
 import {
     detectSheets,
@@ -209,51 +209,107 @@ export const RewardCalculator: React.FC = () => {
     }, [workbook, manualTiersIdx, manualDataIdx, columnMapping, t]);
 
 
-    // ── Export to XLSX ────────────────────────
+    // ── Export to XLSX (format-preserving via exceljs) ───────────────────
 
-    const handleDownload = useCallback(() => {
+    const handleDownload = useCallback(async () => {
         if (!result || !workbook || !originalFile) return;
 
-        const wb = XLSX.utils.book_new();
+        // Keywords for fuzzy reward-column detection (normalised, no diacritics)
+        const REWARD_KEYWORDS = ['odmena', 'odmna', 'odměna', 'reward', 'pramie', 'pramie'];
 
-        // Sheet 1: Shipment data + new "Vypočítaná Odměna (CZK)" column
-        const dataSheet = workbook.sheets.find((s) => s.name === result.dataSheetName);
-        if (dataSheet) {
-            const headerRow = [...dataSheet.headers.map((h) => {
-                const rawHeaders = dataSheet.rawData[0] as unknown[];
-                const idx = dataSheet.headers.indexOf(h);
-                return rawHeaders?.[idx] ?? h;
-            }), t('rewardCalculator.colReward') + ' (CZK)'];
+        /** Normalise header text for fuzzy matching (strip diacritics + non-alpha). */
+        function normHeader(s: string): string {
+            return s
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]/g, '');
+        }
 
-            const rows: unknown[][] = [headerRow];
+        try {
+            // Load original file as ArrayBuffer so exceljs can preserve all styles
+            const arrayBuffer = await originalFile.arrayBuffer();
 
-            for (const row of dataSheet.rawData.slice(1)) {
-                const rawRow = row as unknown[];
-                const nameColIdx = dataSheet.headers.findIndex((_h, idx) => {
-                    const rawName = String(dataSheet.rawData[0]?.[idx as number] ?? '');
-                    return rawName.toLowerCase().replace(/[^a-z]/g, '').match(
-                        /jmeno|jméno|kuryr|kurýr|ridic|řidič|name|driver|user|uživatel|fahrer|kurier|benutzer/,
-                    );
-                });
-                const driverName = nameColIdx >= 0 ? String(rawRow[nameColIdx] ?? '').trim() : '';
-                const driverResult = result.drivers.find((d) => d.name === driverName);
-                rows.push([...rawRow, driverResult ? driverResult.reward : '']);
+            const exWb = new ExcelJS.Workbook();
+            await exWb.xlsx.load(arrayBuffer);
+
+            // Find the data worksheet by name
+            const exDataSheet = exWb.getWorksheet(result.dataSheetName);
+            if (!exDataSheet) {
+                throw new Error(`Sheet '${result.dataSheetName}' not found in workbook`);
             }
 
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws, result.dataSheetName);
-        }
+            // Build a lookup: driver name → reward value
+            const rewardMap = new Map<string, number>(
+                result.drivers.map((d) => [d.name.trim(), d.reward]),
+            );
 
-        // Sheet 2: Original tier data
-        const tiersSheet = workbook.sheets.find((s) => s.name === result.tiersSheetName);
-        if (tiersSheet && tiersSheet.rawData.length > 0) {
-            const ws = XLSX.utils.aoa_to_sheet(tiersSheet.rawData);
-            XLSX.utils.book_append_sheet(wb, ws, result.tiersSheetName);
-        }
+            // ── Detect or create reward column ───────────────────────────────
+            const headerRow = exDataSheet.getRow(1);
+            let rewardColNumber = -1;
 
-        const fileName = originalFile.name.replace(/\.xlsx?$/i, '') + '_rewards.xlsx';
-        XLSX.writeFile(wb, fileName);
-    }, [result, workbook, originalFile, t]);
+            // 1. Try to find an existing reward column by fuzzy match
+            headerRow.eachCell((cell, colNumber) => {
+                const headerText = String(cell.value ?? '');
+                if (REWARD_KEYWORDS.some((kw) => normHeader(headerText).includes(kw))) {
+                    rewardColNumber = colNumber;
+                }
+            });
+
+            // 2. No match → append a new column at the end
+            if (rewardColNumber === -1) {
+                rewardColNumber = (exDataSheet.columnCount || 0) + 1;
+                // Write the header label
+                const headerCell = headerRow.getCell(rewardColNumber);
+                headerCell.value = 'Vypočítaná odměna (CZK)';
+                headerCell.font = { bold: true };
+                headerRow.commit();
+            }
+
+            // ── Detect name column in the header row ─────────────────────────
+            const NAME_NORM_KEYWORDS = [
+                'jmeno', 'kuryr', 'ridic', 'name', 'driver', 'user', 'uzivatel', 'fahrer', 'kurier',
+            ];
+            let nameColNumber = -1;
+            headerRow.eachCell((cell, colNumber) => {
+                if (nameColNumber !== -1) return;
+                const h = normHeader(String(cell.value ?? ''));
+                if (NAME_NORM_KEYWORDS.some((kw) => h.includes(kw))) {
+                    nameColNumber = colNumber;
+                }
+            });
+
+            // ── Write reward values for each data row ────────────────────────
+            exDataSheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return; // skip header
+
+                const nameCell = nameColNumber !== -1 ? row.getCell(nameColNumber) : null;
+                const driverName = String(nameCell?.value ?? '').trim();
+                const reward = rewardMap.get(driverName);
+
+                if (reward !== undefined) {
+                    const rewardCell = row.getCell(rewardColNumber);
+                    rewardCell.value = reward;
+                    rewardCell.numFmt = '#,##0.00';
+                    row.commit();
+                }
+            });
+
+            // ── Save the modified workbook while keeping all other sheets ─────
+            const buffer = await exWb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = originalFile.name.replace(/\.xlsx?$/i, '') + '_rewards.xlsx';
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('[RewardCalculator] Export failed:', err);
+        }
+    }, [result, workbook, originalFile]);
 
     // ── Reset ─────────────────────────────────
 
@@ -531,6 +587,11 @@ export const RewardCalculator: React.FC = () => {
                     fmtCurrency={fmtCurrency}
                     onDownload={handleDownload}
                     onReset={handleReset}
+                    onChangeMapping={() => {
+                        // Return to the manual-select panel so the user can fix column mapping
+                        setColumnMapping({});
+                        setPhase('manual-select');
+                    }}
                     t={t}
                 />
             )}
@@ -573,8 +634,10 @@ const ResultsView: React.FC<{
     fmtCurrency: (n: number) => string;
     onDownload: () => void;
     onReset: () => void;
+    /** Opens the manual column-mapping screen so the user can fix detection errors */
+    onChangeMapping: () => void;
     t: (key: string) => string;
-}> = ({ result, fmtCurrency, onDownload, onReset, t }) => {
+}> = ({ result, fmtCurrency, onDownload, onReset, onChangeMapping, t }) => {
     const totalShipments = result.drivers.reduce((sum, d) => sum + d.shipments, 0);
 
     return (
@@ -647,6 +710,15 @@ const ResultsView: React.FC<{
                         {t('rewardCalculator.resultTitle')}
                     </h3>
                     <div className="flex items-center gap-2">
+                        {/* FIX: button to re-open column mapping so users can correct bad auto-detection */}
+                        <button
+                            onClick={onChangeMapping}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all"
+                            title="Změnit mapování sloupců"
+                        >
+                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                            Změnit mapování
+                        </button>
                         <button
                             onClick={onDownload}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:shadow-lg transition-all"

@@ -294,13 +294,14 @@ export function extractDrivers(sheet: ParsedSheet, override?: ColumnOverride): R
 
 /**
  * Calculate progressive reward for a given number of shipments.
- * Iterates tiers ascending, applying each tier's rate only for
- * the shipments falling within that tier's interval.
  *
- * Example:
- *   Tiers: [0-50 @ 20, 51-100 @ 25, 101+ @ 30]
- *   Shipments: 75
- *   → 50 * 20 + 25 * 25 = 1000 + 625 = 1625
+ * Tiers are sorted ascending by `from`. For each tier the size is
+ * `to - from + 1` (inclusive on both ends). The last/open-ended tier
+ * (to === 0 | null | undefined) is treated as Infinity.
+ *
+ * Verified examples (tiers: 1-5@120, 6-10@100, 11-20@80, 21-30@60):
+ *   3  shipments →  3 * 120               =  360 Kč
+ *   16 shipments →  5*120 + 5*100 + 6*80  = 1580 Kč
  */
 export function calculateProgressiveReward(
     shipments: number,
@@ -308,25 +309,30 @@ export function calculateProgressiveReward(
 ): number {
     if (shipments <= 0 || tiers.length === 0) return 0;
 
-    let totalReward = 0;
+    // Sort tiers ascending by lower bound (defensive copy)
+    const sorted = [...tiers].sort((a, b) => a.from - b.from);
+
+    let total = 0;
     let remaining = shipments;
 
-    for (const tier of tiers) {
+    for (const tier of sorted) {
         if (remaining <= 0) break;
 
-        // Determine how many shipments fall into this tier
-        const tierWidth = tier.to !== null
-            ? tier.to - tier.from
-            : remaining; // Infinity tier takes all remaining
+        // Treat to === 0 / null / undefined as open-ended (Infinity)
+        const tierMax =
+            tier.to === 0 || tier.to === null || tier.to === undefined
+                ? Infinity
+                : tier.to;
 
-        // Cap to what we actually have remaining
-        const applicableCount = Math.min(remaining, tierWidth > 0 ? tierWidth : remaining);
+        // Size of this tier band (inclusive: from=1, to=5 → 5 slots)
+        const tierSize = tierMax === Infinity ? remaining : tierMax - tier.from + 1;
 
-        totalReward += applicableCount * tier.rate;
-        remaining -= applicableCount;
+        const countInTier = Math.min(remaining, tierSize);
+        total += countInTier * tier.rate;
+        remaining -= countInTier;
     }
 
-    return Math.round(totalReward * 100) / 100; // Round to 2 decimal places
+    return Math.round(total * 100) / 100; // Round to 2 decimal places
 }
 
 // ── Full Calculation Pipeline ───────────────
