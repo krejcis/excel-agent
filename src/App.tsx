@@ -7,6 +7,7 @@ import { Header } from '@/components/shared/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { InvoiceAuditor } from '@/agents/invoice-auditor/InvoiceAuditor';
 import { RewardCalculator } from '@/agents/reward-calculator/RewardCalculator';
+import { MacroCreator } from '@/agents/macro-creator/MacroCreator';
 import { useAppStore } from '@/store/appStore';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -20,6 +21,8 @@ const App: React.FC = () => {
                 return <RewardCalculator />;
             case 'invoice-auditor':
                 return <InvoiceAuditor />;
+            case 'macro-creator':
+                return <MacroCreator />;
             case 'data-prepper':
             case 'rate-normalizer':
             case 'ad-hoc-analyst':

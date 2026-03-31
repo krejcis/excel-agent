@@ -7,6 +7,7 @@ import React from 'react';
 import {
     Calculator,
     FileSearch,
+    Braces,
     Database,
     Table,
     MessageSquareText,
@@ -20,6 +21,7 @@ import type { AgentDefinition, AppView } from '@/types';
 const iconMap: Record<string, React.ElementType> = {
     Calculator,
     FileSearch,
+    Braces,
     Database,
     Table,
     MessageSquareText,
@@ -29,6 +31,7 @@ const iconMap: Record<string, React.ElementType> = {
 const agentTranslationKeys: Record<string, string> = {
     'reward-calculator': 'agents.rewardCalculator',
     'invoice-auditor': 'agents.invoiceAuditor',
+    'macro-creator': 'agents.macroCreator',
     'data-prepper': 'agents.dataPrepper',
     'rate-normalizer': 'agents.rateNormalizer',
     'ad-hoc-analyst': 'agents.adHocAnalyst',

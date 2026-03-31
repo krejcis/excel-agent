@@ -30,6 +30,17 @@ export const AGENTS: AgentDefinition[] = [
         accentColor: '#2563eb',
     },
     {
+        id: 'macro-creator',
+        name: 'Macro Creator',
+        subtitle: 'VBA & Office Scripts generator',
+        description:
+            'Describe what you need and AI generates ready-to-use VBA macros or Office Scripts. Copy the code directly into Excel.',
+        icon: 'Braces',
+        status: 'available',
+        color: 'from-violet-600 to-purple-800',
+        accentColor: '#7c3aed',
+    },
+    {
         id: 'data-prepper',
         name: 'LBase Data Prepper',
         subtitle: 'TMS Integration Cleaner',

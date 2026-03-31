@@ -2,6 +2,36 @@
 
 All notable changes to LogiCore AI are documented in this file.
 
+## [0.4.0] – 2026-03-31
+
+### Added
+
+- **Macro Creator Agent**: New AI-powered tool for generating Excel macros from natural-language descriptions.
+  - **Dual Script Support**: Generate VBA macros (`.xlsm` desktop) or Office Scripts (Excel Online / Microsoft 365).
+  - **Script type dropdown**: Switch between VBA and Office Script with dedicated system prompts for each.
+  - **Code output**: Monospace code block with dark background and horizontal scroll.
+  - **Copy to clipboard**: One-click copy with 2-second confirmation toast.
+  - **Regenerate**: Re-run generation while preserving the user's description.
+  - **MacroInstructions component**: Always-visible, context-aware step-by-step guide:
+    - VBA: Two tabs — "With Developer Tab" and "Without Developer Tab" (includes how to enable it).
+    - Office Script: Step-by-step guide for Excel Online with OneDrive/SharePoint note.
+    - Keyboard shortcuts (`Alt+F11`, `F5`) rendered as styled monospace badges.
+  - Full translations for CS, EN, DE.
+- **Dashboard**: Macro Creator added as the third available agent card (violet/purple gradient, Braces icon).
+
+### Technical
+
+- `types/index.ts` – Added `'macro-creator'` to `AgentId` union.
+- `config/agents.ts` – Macro Creator agent definition (available, violet-purple gradient, Braces icon).
+- `agents/macro-creator/MacroCreator.tsx` – Full UI component with textarea, dropdown, generate/copy/regenerate flow.
+- `agents/macro-creator/MacroInstructions.tsx` – Tab-based instruction component with Kbd badge rendering.
+- `App.tsx` – Added `macro-creator` route.
+- `Dashboard.tsx` – Added `Braces` icon import and `macro-creator` translation key mapping.
+- `translations.ts` – Complete `macroCreator` section for CS/EN/DE (agent card + all UI strings + instructions).
+- TypeScript strict, no `any` types, all comments in English.
+
+---
+
 ## [0.3.1] – 2026-03-10
 
 ### Added

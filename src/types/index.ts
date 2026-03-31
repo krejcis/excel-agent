@@ -7,6 +7,7 @@
 export type AgentId =
     | 'reward-calculator'
     | 'invoice-auditor'
+    | 'macro-creator'
     | 'data-prepper'
     | 'rate-normalizer'
     | 'ad-hoc-analyst';

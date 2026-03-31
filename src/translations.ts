@@ -50,7 +50,7 @@ export const translations: Translations = {
             title: 'Operační Dashboard',
             subtitle:
                 'AI agenti pro spediční operace. Vyberte agenta níže pro zahájení zpracování.',
-            footerNote: 'LogiCore AI v0.3.1 • Data zpracována lokálně v prohlížeči',
+            footerNote: 'LogiCore AI v0.4.0 • Data zpracována lokálně v prohlížeči',
         },
 
         // ── Agent Cards ─────────────────────────────
@@ -72,6 +72,12 @@ export const translations: Translations = {
                 subtitle: 'Porovnání faktury dopravce s nabídkou',
                 description:
                     'Nahrajte fakturu dopravce a původní cenovou nabídku. AI provede fuzzy párování k automatické detekci cenových odchylek, skrytých příplatků a nesrovnalostí v položkách.',
+            },
+            macroCreator: {
+                name: 'Tvůrce maker',
+                subtitle: 'Generátor VBA maker a Office Scripts',
+                description:
+                    'Popište co potřebujete a AI vygeneruje hotový VBA kód nebo Office Script. Zkopírujte kód přímo do Excelu.',
             },
             dataPrepper: {
                 name: 'LBase Čistič dat',
@@ -156,6 +162,42 @@ export const translations: Translations = {
             tierInfinity: '∞',
             driversProcessed: 'řidičů zpracováno',
             totalReward: 'Celková odměna',
+        },
+
+        // ── Macro Creator ───────────────────────────
+        macroCreator: {
+            title: 'Tvůrce maker',
+            description:
+                'Popište co potřebujete a AI vygeneruje hotový VBA kód nebo Office Script pro Excel.',
+            inputLabel: 'Popište požadované makro',
+            placeholder: 'Např.: Vytvoř makro, které seřadí list podle sloupce A a zvýrazní duplicity červeně...',
+            generateButton: 'Vygenerovat',
+            loadingText: 'AI generuje kód…',
+            copyButton: 'Kopírovat kód',
+            copiedText: 'Zkopírováno!',
+            regenerateButton: 'Vygenerovat znovu',
+            generationFailed: 'Generování selhalo',
+            selectTypeLabel: 'Typ skriptu',
+            typeVBA: 'VBA Macro (Excel desktop – .xlsm)',
+            typeOfficeScript: 'Office Script (Excel Online / Microsoft 365)',
+            instructionsTitle: 'Jak vložit kód do Excelu',
+            instructions: {
+                vba: {
+                    withDevTab: 'Mám záložku Vývojář',
+                    withoutDevTab: 'Nemám záložku Vývojář',
+                    withDevSteps:
+                        'Záložka Vývojář → Visual Basic|Insert → Module|Vložte kód|`F5` pro spuštění nebo Vývojář → Makra → Spustit',
+                    enableDevTab:
+                        'Aktivace záložky Vývojář (jednorázově):|Soubor → Možnosti → Přizpůsobit pás karet|Zaškrtni "Vývojář" → OK|Pak postupujte podle návodu výše.',
+                    altShortcut:
+                        'Nebo přímo: `Alt+F11` → otevře Visual Basic editor',
+                },
+                officescript: {
+                    steps:
+                        'Otevřete soubor v Excel Online (office.com)|Klikněte na záložku Automatizovat (Automate)|Klikněte na „Nový skript" (New Script)|Smažte výchozí kód a vložte vygenerovaný|Klikněte na tlačítko „Spustit" (Run)',
+                    note: 'Poznámka: Office Scripts funguje pouze v Excel Online / Microsoft 365. Soubor musí být uložen na OneDrive nebo SharePoint.',
+                },
+            },
         },
 
         // ── Invoice Auditor ─────────────────────────
@@ -256,7 +298,7 @@ export const translations: Translations = {
             title: 'Operations Dashboard',
             subtitle:
                 'AI-powered agents for freight operations. Select an agent below to start processing.',
-            footerNote: 'LogiCore AI v0.3.1 • Data processed locally in browser',
+            footerNote: 'LogiCore AI v0.4.0 • Data processed locally in browser',
         },
 
         // ── Agent Cards ─────────────────────────────
@@ -278,6 +320,12 @@ export const translations: Translations = {
                 subtitle: 'Carrier Invoice vs. Quote Comparison',
                 description:
                     'Upload a carrier invoice and the original cost estimate. AI performs fuzzy matching to automatically detect pricing variances, hidden surcharges, and line-item discrepancies.',
+            },
+            macroCreator: {
+                name: 'Macro Creator',
+                subtitle: 'VBA & Office Scripts generator',
+                description:
+                    'Describe what you need and AI generates ready-to-use VBA macros or Office Scripts. Copy the code directly into Excel.',
             },
             dataPrepper: {
                 name: 'LBase Data Prepper',
@@ -359,6 +407,42 @@ export const translations: Translations = {
             tierInfinity: '∞',
             driversProcessed: 'drivers processed',
             totalReward: 'Total reward',
+        },
+
+        // ── Macro Creator ───────────────────────────
+        macroCreator: {
+            title: 'Macro Creator',
+            description:
+                'Describe what you need and AI generates ready-to-use VBA or Office Script code for Excel.',
+            inputLabel: 'Describe the desired macro',
+            placeholder: 'E.g.: Create a macro that sorts the sheet by column A and highlights duplicates in red...',
+            generateButton: 'Generate',
+            loadingText: 'AI is generating code…',
+            copyButton: 'Copy Code',
+            copiedText: 'Copied!',
+            regenerateButton: 'Regenerate',
+            generationFailed: 'Generation failed',
+            selectTypeLabel: 'Script type',
+            typeVBA: 'VBA Macro (Excel desktop – .xlsm)',
+            typeOfficeScript: 'Office Script (Excel Online / Microsoft 365)',
+            instructionsTitle: 'How to paste the code into Excel',
+            instructions: {
+                vba: {
+                    withDevTab: 'I have the Developer tab',
+                    withoutDevTab: 'I don\'t have the Developer tab',
+                    withDevSteps:
+                        'Developer tab → Visual Basic|Insert → Module|Paste the code|`F5` to run, or Developer → Macros → Run',
+                    enableDevTab:
+                        'Enable Developer tab (one-time):|File → Options → Customize Ribbon|Check "Developer" → OK|Then follow the instructions above.',
+                    altShortcut:
+                        'Or directly: `Alt+F11` → opens Visual Basic editor',
+                },
+                officescript: {
+                    steps:
+                        'Open the file in Excel Online (office.com)|Click the Automate tab|Click "New Script"|Clear the default code and paste the generated script|Click "Run"',
+                    note: 'Note: Office Scripts only works in Excel Online / Microsoft 365. The file must be saved on OneDrive or SharePoint.',
+                },
+            },
         },
 
         // ── Invoice Auditor ─────────────────────────
@@ -459,7 +543,7 @@ export const translations: Translations = {
             title: 'Operations-Dashboard',
             subtitle:
                 'KI-gesteuerte Agenten für Speditionsoperationen. Wählen Sie einen Agenten aus, um die Verarbeitung zu starten.',
-            footerNote: 'LogiCore AI v0.3.1 • Daten werden lokal im Browser verarbeitet',
+            footerNote: 'LogiCore AI v0.4.0 • Daten werden lokal im Browser verarbeitet',
         },
 
         // ── Agent Cards ─────────────────────────────
@@ -481,6 +565,12 @@ export const translations: Translations = {
                 subtitle: 'Frachtrechnung vs. Angebot Vergleich',
                 description:
                     'Laden Sie eine Frachtrechnung und das ursprüngliche Kostenangebot hoch. KI führt Fuzzy-Matching durch, um Preisabweichungen, versteckte Zuschläge und Positionsunterschiede automatisch zu erkennen.',
+            },
+            macroCreator: {
+                name: 'Makro-Ersteller',
+                subtitle: 'VBA- & Office-Scripts-Generator',
+                description:
+                    'Beschreiben Sie, was Sie benötigen, und die KI generiert einsatzbereite VBA-Makros oder Office Scripts. Kopieren Sie den Code direkt in Excel.',
             },
             dataPrepper: {
                 name: 'LBase Datenaufbereiter',
@@ -562,6 +652,42 @@ export const translations: Translations = {
             tierInfinity: '∞',
             driversProcessed: 'Fahrer verarbeitet',
             totalReward: 'Gesamtprämie',
+        },
+
+        // ── Macro Creator ───────────────────────────
+        macroCreator: {
+            title: 'Makro-Ersteller',
+            description:
+                'Beschreiben Sie, was Sie benötigen, und die KI generiert fertigen VBA- oder Office-Script-Code für Excel.',
+            inputLabel: 'Beschreiben Sie das gewünschte Makro',
+            placeholder: 'Z.B.: Erstelle ein Makro, das das Blatt nach Spalte A sortiert und Duplikate rot hervorhebt...',
+            generateButton: 'Generieren',
+            loadingText: 'KI generiert Code…',
+            copyButton: 'Code kopieren',
+            copiedText: 'Kopiert!',
+            regenerateButton: 'Erneut generieren',
+            generationFailed: 'Generierung fehlgeschlagen',
+            selectTypeLabel: 'Skripttyp',
+            typeVBA: 'VBA Makro (Excel Desktop – .xlsm)',
+            typeOfficeScript: 'Office Script (Excel Online / Microsoft 365)',
+            instructionsTitle: 'So fügen Sie den Code in Excel ein',
+            instructions: {
+                vba: {
+                    withDevTab: 'Ich habe die Registerkarte Entwickler',
+                    withoutDevTab: 'Ich habe keine Registerkarte Entwickler',
+                    withDevSteps:
+                        'Registerkarte Entwickler → Visual Basic|Einfügen → Modul|Code einfügen|`F5` oder Entwickler → Makros → Ausführen',
+                    enableDevTab:
+                        'Entwickler-Registerkarte aktivieren (einmalig):|Datei → Optionen → Menüband anpassen|„Entwicklertools" aktivieren → OK|Dann folgen Sie den Anweisungen oben.',
+                    altShortcut:
+                        'Oder direkt: `Alt+F11` → öffnet Visual Basic-Editor',
+                },
+                officescript: {
+                    steps:
+                        'Datei in Excel Online öffnen (office.com)|Registerkarte Automatisieren klicken|„Neues Skript" klicken|Standardcode löschen und generierten Code einfügen|„Ausführen" klicken',
+                    note: 'Hinweis: Office Scripts funktioniert nur in Excel Online / Microsoft 365. Die Datei muss auf OneDrive oder SharePoint gespeichert sein.',
+                },
+            },
         },
 
         // ── Invoice Auditor ─────────────────────────
