@@ -49,39 +49,28 @@ const COUNT_KEYWORDS: string[] = [
 // ── Normalize helper ────────────────────────
 
 /**
- * Normalize a header string for fuzzy comparison:
- * lowercase, strip accents, collapse whitespace/underscores.
+ * Null-safe normalize: strips diacritics, lowercases, collapses whitespace.
+ * Accepts any value — returns empty string for null/undefined/non-string.
  */
-function normalize(raw: string): string {
+function normalize(raw: unknown): string {
+    if (!raw) return '';
     return raw
-        .toLowerCase()
+        .toString()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // strip diacritics
-        .replace(/[^a-z0-9 ]/g, ' ')     // keep spaces, remove other non-alphanumeric
-        .replace(/\s+/g, ' ')            // collapse multiple spaces
-        .trim();
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ');           // collapse multiple spaces
 }
 
 /**
- * Check if a header matches any keyword from a list.
- * Uses substring matching for flexibility.
+ * Check if a header contains any of the given alias keywords.
+ * Matching is done on normalized strings (no diacritics, lowercase).
+ * Direction: normalizedHeader.includes(normalizedAlias)
  */
-function headerMatchesAny(header: string, keywords: string[]): boolean {
-    const norm = normalize(header);
-    // Also try without spaces for backwards compatibility
-    const normCompact = norm.replace(/\s/g, '');
-    return keywords.some((kw) => {
-        const nkw = normalize(kw);
-        const nkwCompact = nkw.replace(/\s/g, '');
-        return (
-            norm === nkw ||
-            norm.includes(nkw) ||
-            nkw.includes(norm) ||
-            normCompact === nkwCompact ||
-            normCompact.includes(nkwCompact) ||
-            nkwCompact.includes(normCompact)
-        );
-    });
+function headerMatchesAny(header: string, aliases: string[]): boolean {
+    const normHeader = normalize(header);
+    return aliases.some((alias) => normHeader.includes(normalize(alias)));
 }
 
 /**
