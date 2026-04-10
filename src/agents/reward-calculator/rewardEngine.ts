@@ -39,7 +39,7 @@ const NAME_KEYWORDS: string[] = [
 
 /** Keywords indicating a shipment count column */
 const COUNT_KEYWORDS: string[] = [
-    'pocet', 'zasilek', 'ks', 'mnozstvi', 'celkem', 'count', 'amount', 'total', 'kusy', 'kus',
+    'pocet', 'zasilek', 'ks', 'mnozstvi', 'count', 'amount', 'kusy', 'kus',
     'sendungen', 'anzahl', 'pakete',
     'shipment', 'shipments',
     'zasilek celkem', 'pocet zasilek',
