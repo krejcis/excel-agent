@@ -8,41 +8,42 @@ import type { ParsedSheet, ParsedWorkbook, RewardTier, DriverReward, RewardResul
 
 // ── Keyword lists for fuzzy detection ───────
 
-/** Keywords indicating a lower-bound column in a tier sheet */
+/** Keywords indicating a lower-bound column in a tier sheet (spodní hranice / od) */
 const LOWER_BOUND_KEYWORDS: string[] = [
-    'od', 'min', 'start', 'from', 'von', 'ab',
-    'spodní hranice', 'spodni hranice', 'od zasilek', 'from shipments',
+    'od', 'min', 'start', 'from', 'minimum',
+    'von', 'ab',
+    'spodni hranice', 'od zasilek', 'from shipments',
 ];
 
-/** Keywords indicating a rate/reward column in a tier sheet */
+/** Keywords indicating a rate/reward column in a tier sheet (sazba / odměna) */
 const RATE_KEYWORDS: string[] = [
-    'sazba', 'cena', 'odmena', 'odměna', 'rate', 'reward',
-    'prämie', 'pramie', 'satz', 'betrag', 'price',
-    'odmena za', 'odměna za', 'cena za', 'rate per', 'sazba za',
-    'odmena celkem', 'odměna celkem',
+    'odmena', 'sazba', 'cena', 'castka', 'rate', 'price', 'reward', 'vyplata', 'penize',
+    'pramie', 'satz', 'betrag',
+    'odmena za', 'cena za', 'rate per', 'sazba za',
+    'odmena celkem',
 ];
 
-/** Keywords indicating an upper-bound column in a tier sheet */
+/** Keywords indicating an upper-bound column in a tier sheet (horní hranice / do) */
 const UPPER_BOUND_KEYWORDS: string[] = [
-    'do', 'max', 'end', 'to', 'bis',
-    'horní hranice', 'horni hranice', 'do zasilek',
+    'do', 'max', 'end', 'to', 'limit', 'maximum',
+    'bis',
+    'horni hranice', 'do zasilek',
 ];
 
 /** Keywords indicating a driver name column */
 const NAME_KEYWORDS: string[] = [
-    'jmeno', 'jméno', 'kurýr', 'kuryr', 'ridic', 'řidič', 'ridič',
-    'name', 'driver', 'user', 'uživatel', 'uzivatel',
+    'jmeno', 'kuryr', 'ridic', 'uzivatel', 'osoba', 'pracovnik', 'name', 'driver', 'user', 'zamestnanec',
     'fahrer', 'kurier', 'benutzer',
-    'uzivatel', 'prijmeni', 'příjmení', 'jmeno kuryre', 'jméno kurýra',
+    'prijmeni', 'jmeno kuryre',
 ];
 
 /** Keywords indicating a shipment count column */
 const COUNT_KEYWORDS: string[] = [
-    'zasilek', 'zásilek', 'pocet', 'počet', 'ks', 'kusu',
-    'count', 'shipment', 'shipments', 'amount', 'total',
+    'pocet', 'zasilek', 'ks', 'mnozstvi', 'celkem', 'count', 'amount', 'total', 'kusy', 'kus',
     'sendungen', 'anzahl', 'pakete',
-    'zasilek celkem', 'zásilek celkem', 'pocet zasilek', 'počet zásilek',
-    'total shipments', 'celkem zasilek', 'celkem zásilek',
+    'shipment', 'shipments',
+    'zasilek celkem', 'pocet zasilek',
+    'total shipments', 'celkem zasilek',
 ];
 
 // ── Normalize helper ────────────────────────

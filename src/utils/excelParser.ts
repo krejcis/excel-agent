@@ -134,15 +134,15 @@ export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
 }
 
 /**
- * Cleans a header value: trims, lowercases, replaces spaces/special chars with underscores.
+ * Cleans a header value: trims, lowercases, strips diacritics (NFD).
+ * Preserves spaces and readable characters — no underscore mangling.
  */
 function cleanHeaderValue(raw: string): string {
     return raw
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9äöüß_]/gi, '_')
-        .replace(/_+/g, '_')
-        .replace(/^_|_$/g, '');
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, ''); // strip combining diacritical marks only
 }
 
 /**
