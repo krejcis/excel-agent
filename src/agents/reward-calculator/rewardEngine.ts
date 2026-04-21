@@ -34,7 +34,7 @@ const UPPER_BOUND_KEYWORDS: string[] = [
 const NAME_KEYWORDS: string[] = [
     'jmeno', 'kuryr', 'ridic', 'uzivatel', 'osoba', 'pracovnik', 'name', 'driver', 'user', 'zamestnanec',
     'fahrer', 'kurier', 'benutzer',
-    'prijmeni', 'jmeno kuryre',
+    'prijmeni', 'jmeno kurýra',
 ];
 
 /** Keywords indicating a shipment count column */
@@ -70,7 +70,12 @@ function normalize(raw: unknown): string {
  */
 function headerMatchesAny(header: string, aliases: string[]): boolean {
     const normHeader = normalize(header);
-    return aliases.some((alias) => normHeader.includes(normalize(alias)));
+    return aliases.some((alias) => {
+        const normAlias = normalize(alias);
+        // \b ohraničí slovo, takže "od" už nikdy nematchne "odmena"
+        const regex = new RegExp(`\\b${normAlias}\\b`, 'i');
+        return regex.test(normHeader);
+    });
 }
 
 /**
